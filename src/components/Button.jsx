@@ -1,9 +1,9 @@
 import React from 'react';
 import '../index.css';
 
-const Button = ({ 
-  children, 
-  onClick, 
+const Button = ({
+  children,
+  onClick,
   variant = 'primary', // primary, secondary, danger, outline
   size = 'md', // sm, md, lg, block
   className = '',
@@ -59,7 +59,7 @@ const Button = ({
   };
 
   return (
-    <button 
+    <button
       type={type}
       className={className}
       style={style}

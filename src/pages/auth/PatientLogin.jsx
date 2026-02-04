@@ -4,418 +4,398 @@ import Button from '../../components/Button';
 import { useAuth } from '../../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import MapComponent from '../../components/MapComponent';
-import { ArrowLeft, ShieldCheck, Phone, User, MapPin, Calendar, CheckCircle2, Search, Building2, Navigation, Loader2 } from 'lucide-react';
+import {
+    ArrowLeft, ShieldCheck, Phone, User, MapPin,
+    Calendar as CalendarIcon, CheckCircle2, Search,
+    Navigation, Loader2, ChevronLeft, ChevronRight, Lock, ChevronDown
+} from 'lucide-react';
 import { hospitals as mockHospitals } from '../../utils/mockData';
+
+// --- Custom Components ---
+
+const CalendarPicker = ({ value, onChange, onClose }) => {
+    const [viewDate, setViewDate] = useState(value ? new Date(value) : new Date());
+    const [selectedDate, setSelectedDate] = useState(value ? new Date(value) : null);
+    const [view, setView] = useState('days'); // 'days' | 'months' | 'years'
+
+    const daysInMonth = (month, year) => new Date(year, month + 1, 0).getDate();
+    const firstDayOfMonth = (month, year) => new Date(year, month, 1).getDay();
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const currentMonth = viewDate.getMonth();
+    const currentYear = viewDate.getFullYear();
+
+    const handleDateSelect = (day) => {
+        const newDate = new Date(currentYear, currentMonth, day);
+        setSelectedDate(newDate);
+        onChange(newDate.toISOString().split('T')[0]);
+        onClose();
+    };
+
+    const handleMonthSelect = (mIndex) => {
+        setViewDate(new Date(currentYear, mIndex, 1));
+        setView('days');
+    };
+
+    const handleYearSelect = (y) => {
+        setViewDate(new Date(y, currentMonth, 1));
+        setView('days');
+    };
+
+    const renderDays = () => {
+        const days = [];
+        const totalDays = daysInMonth(currentMonth, currentYear);
+        const firstDay = firstDayOfMonth(currentMonth, currentYear);
+        for (let i = 0; i < firstDay; i++) days.push(<div key={`empty-${i}`} style={{ width: '32px', height: '32px' }} />);
+        for (let d = 1; d <= totalDays; d++) {
+            const isSelected = selectedDate && selectedDate.getDate() === d && selectedDate.getMonth() === currentMonth && selectedDate.getFullYear() === currentYear;
+            days.push(
+                <button key={d} onClick={() => handleDateSelect(d)} className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${isSelected ? 'bg-blue-600 text-white font-bold' : 'hover:bg-blue-50 text-slate-700'}`}>
+                    {d}
+                </button>
+            );
+        }
+        return <div className="grid grid-cols-7 gap-1 text-center mt-2">{['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => <div key={d} className="text-xs font-bold text-slate-400 h-6">{d}</div>)}{days}</div>;
+    };
+
+    const renderMonths = () => (
+        <div className="grid grid-cols-3 gap-2 mt-2">
+            {months.map((m, i) => (
+                <button key={m} onClick={() => handleMonthSelect(i)} className={`p-2 rounded-lg text-sm font-semibold ${i === currentMonth ? 'bg-blue-600 text-white' : 'hover:bg-slate-50 text-slate-700'}`}>
+                    {m}
+                </button>
+            ))}
+        </div>
+    );
+
+    const renderYears = () => {
+        const years = [];
+        for (let y = new Date().getFullYear(); y >= 1900; y--) years.push(y);
+        return (
+            <div className="grid grid-cols-4 gap-2 mt-2 max-h-[200px] overflow-y-auto custom-scrollbar">
+                {years.map(y => (
+                    <button key={y} onClick={() => handleYearSelect(y)} className={`p-2 rounded-lg text-sm font-semibold ${y === currentYear ? 'bg-blue-600 text-white' : 'hover:bg-slate-50 text-slate-700'}`}>
+                        {y}
+                    </button>
+                ))}
+            </div>
+        );
+    };
+
+    return (
+        <div className="absolute top-full left-0 mt-2 bg-white rounded-2xl shadow-xl border border-slate-100 p-4 z-50 w-72">
+            <div className="flex justify-between items-center mb-2 bg-slate-50 p-2 rounded-xl">
+                {view === 'days' && <button onClick={() => setViewDate(new Date(currentYear, currentMonth - 1, 1))} className="p-1 hover:bg-slate-200 rounded-full text-slate-500"><ChevronLeft size={16} /></button>}
+
+                <div className="flex items-center gap-2 flex-1 justify-center">
+                    <button onClick={() => setView('months')} className="flex items-center gap-1 font-bold text-slate-700 hover:text-blue-600 px-2 py-1 rounded transition-colors">
+                        {months[currentMonth]} <ChevronDown size={14} className="opacity-50" />
+                    </button>
+                    <button onClick={() => setView('years')} className="flex items-center gap-1 font-bold text-slate-700 hover:text-blue-600 px-2 py-1 rounded transition-colors">
+                        {currentYear} <ChevronDown size={14} className="opacity-50" />
+                    </button>
+                </div>
+
+                {view === 'days' && <button onClick={() => setViewDate(new Date(currentYear, currentMonth + 1, 1))} className="p-1 hover:bg-slate-200 rounded-full text-slate-500"><ChevronRight size={16} /></button>}
+            </div>
+
+            {view === 'days' && renderDays()}
+            {view === 'months' && renderMonths()}
+            {view === 'years' && renderYears()}
+
+            {view !== 'days' && (
+                <button onClick={() => setView('days')} className="w-full mt-2 py-2 text-xs font-bold text-blue-600 hover:bg-blue-50 rounded-lg">
+                    Back to Calendar
+                </button>
+            )}
+        </div>
+    );
+};
+
+// --- View Components (Moved Outside) ---
+
+const LoginView = ({ loginPhone, setLoginPhone, onSubmit, onSwitch }) => (
+    <motion.div
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: 20 }}
+        className="w-full max-w-[400px]"
+    >
+        <div className="text-center mb-8">
+            <div className="flex items-center justify-center gap-1.5 mb-6">
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" className="text-blue-600 drop-shadow-sm">
+                    <path d="M16 2C16 9.73 9.73 16 2 16C9.73 16 16 22.27 16 30C16 22.27 22.27 16 30 16C22.27 16 16 9.73 16 2Z" fill="currentColor" />
+                </svg>
+                <h1 className="text-2xl tracking-tight">
+                    <span className="font-bold text-slate-900">health</span><span className="font-normal text-slate-900">Link</span>
+                </h1>
+            </div>
+            <h2 className="text-3xl font-bold text-slate-900 mb-2">Welcome back</h2>
+            <p className="text-slate-500 text-sm">Please enter your details to sign in</p>
+        </div>
+
+        {/* Social Buttons (Mock Enabled) */}
+        <div className="flex justify-center gap-4 mb-8">
+            {['Google', 'Apple', 'X'].map((p, i) => (
+                <button key={i} onClick={() => alert(`${p} Login Coming Soon!`)} className="w-14 h-14 rounded-full border border-slate-200 flex items-center justify-center hover:bg-slate-50 hover:border-blue-200 active:scale-95 transition-all bg-white group shadow-sm cursor-pointer">
+                    <img src={`https://cdn.simpleicons.org/${p.toLowerCase()}`} alt={p} className="w-5 h-5 opacity-60 group-hover:opacity-100 transition-opacity" />
+                </button>
+            ))}
+        </div>
+
+        <div className="relative flex items-center justify-center mb-8">
+            <div className="h-px bg-slate-200 w-full absolute" />
+            <span className="bg-slate-50 px-4 text-xs font-bold text-slate-400 uppercase z-10">OR</span>
+        </div>
+
+        <form onSubmit={onSubmit} className="flex flex-col gap-5">
+            <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 ml-1">Phone Number</label>
+                <div className="flex items-center gap-3 px-4 py-3.5 bg-white border border-slate-200 rounded-xl focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/10 transition-all shadow-sm">
+                    <span className="text-slate-500 font-bold">+91</span>
+                    <input
+                        type="tel"
+                        placeholder="98765 43210"
+                        className="bg-transparent border-none outline-none w-full font-semibold text-slate-800 placeholder:text-slate-300"
+                        value={loginPhone}
+                        onChange={(e) => setLoginPhone(e.target.value)}
+                        maxLength={10}
+                        required
+                    />
+                </div>
+            </div>
+
+            <div className="flex items-center justify-between text-xs mt-[-4px]">
+                <label className="flex items-center gap-2 text-slate-500 cursor-pointer">
+                    <input type="checkbox" className="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+                    Remember me
+                </label>
+                <button type="button" className="font-bold text-slate-900 hover:underline">Forgot password?</button>
+            </div>
+
+            <button
+                type="submit"
+                className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 active:scale-[0.98] transition-all shadow-xl shadow-slate-900/20"
+            >
+                Sign in
+            </button>
+        </form>
+
+        <div className="text-center mt-8">
+            <p className="text-sm text-slate-500">
+                Don't have an account?{' '}
+                <button onClick={onSwitch} className="font-bold text-slate-900 hover:underline">Sign up</button>
+            </p>
+        </div>
+    </motion.div>
+);
+
+const SignUpView = ({ data, setData, onSubmit, onSwitch, showCalendar, setShowCalendar }) => (
+    <motion.div
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: -20 }}
+        className="w-full px-2"
+    >
+        <div className="text-center mb-6">
+            <h2 className="text-2xl font-bold text-emerald-500 mb-2">Create Account</h2>
+            <p className="text-slate-500 text-sm">Join HealthLink for better healthcare</p>
+        </div>
+
+        <form onSubmit={onSubmit} className="flex flex-col gap-4">
+            <InputGroup icon={<User size={18} />} label="Full Name">
+                <input name="name" placeholder="John Doe" value={data.name} onChange={(e) => setData({ ...data, name: e.target.value })} className="bg-transparent outline-none w-full font-medium" required />
+            </InputGroup>
+
+            <div className="relative">
+                <InputGroup icon={<CalendarIcon size={18} />} label="Birth Date" onClick={() => setShowCalendar(!showCalendar)} style={{ cursor: 'pointer' }}>
+                    <div className={`font-medium ${!data.birthDate && 'text-slate-400'}`}>{data.birthDate || 'Select Date'}</div>
+                </InputGroup>
+                {showCalendar && <CalendarPicker value={data.birthDate} onChange={(d) => setData(prev => ({ ...prev, birthDate: d }))} onClose={() => setShowCalendar(false)} />}
+            </div>
+
+            <div className="flex gap-3">
+                <InputGroup icon={<CalendarIcon size={18} />} label="Age" style={{ flex: 1, background: '#f1f5f9' }}>
+                    <input name="age" value={data.age} readOnly className="bg-transparent outline-none w-full font-medium cursor-default text-slate-500" placeholder="--" />
+                </InputGroup>
+                <InputGroup label="Gender" style={{ flex: 1 }}>
+                    <select name="gender" value={data.gender} onChange={(e) => setData({ ...data, gender: e.target.value })} className="bg-transparent outline-none w-full font-medium cursor-pointer">
+                        <option>Male</option><option>Female</option><option>Other</option>
+                    </select>
+                </InputGroup>
+            </div>
+
+            <InputGroup icon={<MapPin size={18} />} label="Address">
+                <input name="address" placeholder="Area / City" value={data.address} onChange={(e) => setData({ ...data, address: e.target.value })} className="bg-transparent outline-none w-full font-medium" required />
+            </InputGroup>
+
+            <InputGroup icon={<Phone size={18} />} label="Phone Number">
+                <div className="flex gap-2 items-center w-full">
+                    <span className="font-bold text-slate-500">+91</span>
+                    <input name="phone" type="tel" maxLength={10} value={data.phone} onChange={(e) => setData({ ...data, phone: e.target.value })} className="bg-transparent outline-none w-full font-medium" required />
+                </div>
+            </InputGroup>
+
+            <button type="submit" className="w-full py-3.5 mt-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-bold hover:shadow-lg hover:shadow-emerald-500/30 active:scale-[0.98] transition-all">
+                Register & Get OTP
+            </button>
+        </form>
+
+        <div className="text-center mt-6">
+            <p className="text-sm text-slate-500">
+                Already have an account?{' '}
+                <button onClick={onSwitch} className="font-bold text-emerald-600 hover:underline">Sign in</button>
+            </p>
+        </div>
+    </motion.div>
+);
+
+const OtpView = ({ phone, otp, setOtp, otpRefs, onVerify, onBack }) => (
+    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center text-center">
+        <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mb-4">
+            <ShieldCheck size={32} className="text-emerald-500" />
+        </div>
+        <h2 className="text-2xl font-bold text-slate-800 mb-2">Verify OTP</h2>
+        <p className="text-sm text-slate-500 mb-8">
+            Code sent to <span className="font-bold text-slate-800">+91 {phone}</span>
+        </p>
+
+        <div className="flex gap-3 mb-8">
+            {otp.map((d, i) => (
+                <input key={i} ref={el => otpRefs.current[i] = el} type="text" maxLength={1} value={d}
+                    onChange={e => {
+                        const val = e.target.value;
+                        if (val.length > 1) return;
+                        const newOtp = [...otp];
+                        newOtp[i] = val;
+                        setOtp(newOtp);
+                        if (val && i < 5) otpRefs.current[i + 1].focus();
+                    }}
+                    onKeyDown={e => {
+                        if (e.key === 'Backspace' && !otp[i] && i > 0) otpRefs.current[i - 1].focus();
+                    }}
+                    className="w-12 h-14 border-2 border-slate-200 rounded-xl text-center text-xl font-bold focus:border-emerald-500 focus:bg-white bg-slate-50 outline-none transition-all"
+                />
+            ))}
+        </div>
+
+        <button onClick={onVerify} className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold shadow-lg shadow-slate-900/20 active:scale-[0.98] transition-all">
+            Verify & Continue
+        </button>
+        <button onClick={onBack} className="mt-6 text-sm font-bold text-slate-400 hover:text-slate-600">Back</button>
+    </motion.div>
+);
+
+// --- Main Component ---
 
 const PatientLogin = () => {
     const navigate = useNavigate();
     const { loginPatient } = useAuth();
-
-    // Step 1: Details, Step 2: OTP
+    const [isLoginView, setIsLoginView] = useState(true);
     const [step, setStep] = useState(1);
-
-    // Form Data
-    const [formData, setFormData] = useState({
-        name: '',
-        phone: '',
-        address: '',
-        age: '',
-        birthDate: '',
-        gender: 'Male' // Default
-    });
-
+    const [generatedOtp, setGeneratedOtp] = useState(null);
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
     const otpRefs = useRef([]);
-    const [generatedOtp, setGeneratedOtp] = useState(null);
-    const [showMapModal, setShowMapModal] = useState(false);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [isLocating, setIsLocating] = useState(false);
 
-    // Munge mock hospitals for MapComponent
-    const mapMarkers = mockHospitals.map(h => ({
-        id: h.id,
-        position: [17.44 + Math.random() * 0.1, 78.38 + Math.random() * 0.1], // Mock coordinates
-        title: h.name,
-        description: h.address
-    }));
+    // Login Form Data
+    const [loginPhone, setLoginPhone] = useState('');
 
-    const filteredHospitals = mapMarkers.filter(h =>
-        h.title.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // Signup Form Data
+    const [signupData, setSignupData] = useState({
+        name: '', phone: '', address: '', age: '', birthDate: '', gender: 'Male'
+    });
 
-    const handleSelectHospital = (h) => {
-        setFormData(prev => ({ ...prev, address: h.title + ", " + h.description }));
-        setShowMapModal(false);
-        setSearchTerm('');
-    };
+    const [showCalendar, setShowCalendar] = useState(false);
 
-    const handleUseCurrentLocation = () => {
-        setIsLocating(true);
-        if ("geolocation" in navigator) {
-            navigator.geolocation.getCurrentPosition((pos) => {
-                const coords = `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
-                // In a real app, we'd reverse-geocode this. For now, we'll label it.
-                setFormData(prev => ({ ...prev, address: `My Location (${coords})` }));
-                setIsLocating(false);
-                setShowMapModal(false);
-            }, () => {
-                setIsLocating(false);
-                alert("Could not detect location automatically.");
-            });
-        }
-    };
-
-    // Auto-calculate age from birthDate
     useEffect(() => {
-        if (formData.birthDate) {
-            const birthDate = new Date(formData.birthDate);
+        if (signupData.birthDate) {
+            const bDate = new Date(signupData.birthDate);
             const today = new Date();
-            let age = today.getFullYear() - birthDate.getFullYear();
-            const monthDiff = today.getMonth() - birthDate.getMonth();
-            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-                age--;
-            }
-            if (age >= 0) {
-                setFormData(prev => ({ ...prev, age: age.toString() }));
-            }
+            let age = today.getFullYear() - bDate.getFullYear();
+            const m = today.getMonth() - bDate.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < bDate.getDate())) age--;
+            setSignupData(prev => ({ ...prev, age: age >= 0 ? age.toString() : '' }));
         }
-    }, [formData.birthDate]);
-
-    const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
-    };
+    }, [signupData.birthDate]);
 
     const handleGetOtp = (e) => {
         e.preventDefault();
-        if (formData.phone.length < 10) {
+        const phone = isLoginView ? loginPhone : signupData.phone;
+        if (phone.length < 10) {
             alert('Please enter a valid phone number');
             return;
         }
-        // Simulate OTP
-        const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
         setGeneratedOtp(code);
         alert(`Your OTP is: ${code}`);
         setStep(2);
     };
 
-    const handleOtpChange = (index, value) => {
-        if (value.length > 1) return; // Prevent multiple chars
-        const newOtp = [...otp];
-        newOtp[index] = value;
-        setOtp(newOtp);
-
-        // Auto move focus
-        if (value && index < 5) {
-            otpRefs.current[index + 1].focus();
-        }
-    };
-
-    const handleKeyDown = (index, e) => {
-        // Move back on backspace
-        if (e.key === 'Backspace' && !otp[index] && index > 0) {
-            otpRefs.current[index - 1].focus();
-        }
-    };
-
     const handleVerifyOtp = () => {
-        const enteredOtp = otp.join('');
-        if (enteredOtp === generatedOtp) {
-            loginPatient(formData);
+        if (otp.join('') === generatedOtp) {
+            const finalData = isLoginView
+                ? { phone: loginPhone, name: 'Patient' }
+                : signupData;
+
+            loginPatient(finalData);
             navigate('/');
         } else {
             alert('Invalid OTP');
         }
     };
 
-    // Render Step 1: Registration / Details
-    if (step === 1) {
-        return (
-            <div className="auth-wrapper">
-                <div className="flex-col p-4 auth-card" style={{ backgroundColor: '#fff' }}>
-                    <header style={{ display: 'flex', alignItems: 'center', marginBottom: '24px' }}>
-                        <button onClick={() => navigate('/login')} style={{ background: 'none', padding: '8px', marginRight: '8px' }}>
-                            <ArrowLeft size={24} color="#333" />
-                        </button>
-                        <h1 style={{ fontSize: '20px', fontWeight: 'bold' }}>Patient Details</h1>
-                    </header>
-
-                    <div style={{ marginBottom: '24px' }}>
-                        <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--primary-color)', marginBottom: '8px' }}>Welcome!</h2>
-                        <p style={{ color: 'var(--text-secondary)' }}>Enter your details to register/login</p>
-                    </div>
-
-                    <form onSubmit={handleGetOtp} className="flex-col" style={{ gap: '16px' }}>
-                        <InputGroup icon={<User size={18} />}>
-                            <input
-                                name="name"
-                                placeholder="Full Name"
-                                value={formData.name}
-                                onChange={handleChange}
-                                required
-                                style={inputStyle}
-                            />
-                        </InputGroup>
-
-                        <div style={{ display: 'flex', gap: '16px' }}>
-                            <InputGroup icon={<Calendar size={18} />} style={{ flex: 1 }}>
-                                <input
-                                    name="age"
-                                    placeholder="Age"
-                                    type="number"
-                                    value={formData.age}
-                                    onChange={handleChange}
-                                    required
-                                    style={inputStyle}
-                                />
-                            </InputGroup>
-                            <InputGroup style={{ flex: 1 }}>
-                                <select
-                                    name="gender"
-                                    value={formData.gender}
-                                    onChange={handleChange}
-                                    style={{ ...inputStyle, width: '100%', background: 'transparent' }}
-                                >
-                                    <option value="Male">Male</option>
-                                    <option value="Female">Female</option>
-                                    <option value="Other">Other</option>
-                                </select>
-                            </InputGroup>
-                        </div>
-
-                        <InputGroup icon={<Calendar size={18} />}>
-                            <input
-                                name="birthDate"
-                                placeholder="Birth Date"
-                                type="date"
-                                value={formData.birthDate}
-                                onChange={handleChange}
-                                required
-                                style={inputStyle}
-                            />
-                        </InputGroup>
-
-                        <div style={{ marginBottom: '8px' }}>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="block"
-                                onClick={() => setShowMapModal(true)}
-                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', borderStyle: 'dashed', height: '48px' }}
-                            >
-                                <MapPin size={18} />
-                                Find Preferred Hospital on Map
-                            </Button>
-                        </div>
-
-                        <AnimatePresence>
-                            {showMapModal && (
-                                <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-                                    <motion.div
-                                        initial={{ scale: 0.9, opacity: 0 }}
-                                        animate={{ scale: 1, opacity: 1 }}
-                                        exit={{ scale: 0.9, opacity: 0 }}
-                                        style={{ backgroundColor: 'white', width: '100%', maxWidth: '440px', borderRadius: '24px', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90vh', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', position: 'relative' }}
-                                    >
-                                        <div style={{ padding: '20px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <h3 style={{ fontWeight: 'bold', fontSize: '18px' }}>Select Location</h3>
-                                            <button onClick={() => setShowMapModal(false)} style={{ background: 'none', border: 'none', padding: '4px', cursor: 'pointer', color: '#64748b' }}>
-                                                <ArrowLeft size={20} />
-                                            </button>
-                                        </div>
-
-                                        <div style={{ padding: '16px', overflowY: 'auto' }}>
-                                            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-                                                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', backgroundColor: '#f8f9fa', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                                                    <Search size={18} color="#94a3b8" />
-                                                    <input
-                                                        placeholder="Search hospital..."
-                                                        value={searchTerm}
-                                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                                        style={{ border: 'none', outline: 'none', background: 'transparent', width: '100%', fontSize: '14px' }}
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            <button
-                                                type="button"
-                                                onClick={handleUseCurrentLocation}
-                                                disabled={isLocating}
-                                                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', backgroundColor: '#eff6ff', color: '#2563eb', borderRadius: '12px', border: 'none', fontWeight: 'bold', fontSize: '14px', marginBottom: '16px', cursor: 'pointer' }}
-                                            >
-                                                {isLocating ? <Loader2 size={16} className="animate-spin" /> : <Navigation size={16} />}
-                                                Use My Current Location
-                                            </button>
-
-                                            <div style={{ height: '240px', borderRadius: '16px', overflow: 'hidden', border: '1px solid #e2e8f0', marginBottom: '16px' }}>
-                                                <MapComponent
-                                                    markers={filteredHospitals.map(h => ({
-                                                        ...h,
-                                                        title: `${h.title} (Select)`
-                                                    }))}
-                                                />
-                                            </div>
-
-                                            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                                                {filteredHospitals.map(h => (
-                                                    <div
-                                                        key={h.id}
-                                                        onClick={() => handleSelectHospital(h)}
-                                                        style={{ padding: '12px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', borderRadius: '8px' }}
-                                                    >
-                                                        <p style={{ fontWeight: 'bold', fontSize: '14px', color: '#1e293b' }}>{h.title}</p>
-                                                        <p style={{ fontSize: '12px', color: '#64748b' }}>{h.description}</p>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                </div>
-                            )}
-                        </AnimatePresence>
-
-                        <InputGroup icon={<MapPin size={18} />}>
-                            <input
-                                name="address"
-                                placeholder="Your Address or Selected Hospital"
-                                value={formData.address}
-                                onChange={handleChange}
-                                required
-                                style={inputStyle}
-                            />
-                        </InputGroup>
-
-                        <InputGroup icon={<Phone size={18} />}>
-                            <input
-                                name="phone"
-                                placeholder="Phone Number"
-                                type="tel"
-                                value={formData.phone}
-                                onChange={handleChange}
-                                required
-                                style={inputStyle}
-                            />
-                        </InputGroup>
-
-                        <Button type="submit" size="block" style={{ marginTop: '16px' }}>
-                            Get OTP
-                        </Button>
-                    </form>
-                </div>
-            </div>
-        );
-    }
-
-    // Render Step 2: OTP (Matching Design)
     return (
-        <div className="auth-wrapper">
-            <div className="auth-card" style={{ backgroundColor: '#fff', display: 'flex', flexDirection: 'column', padding: '24px' }}>
-                {/* Header */}
-                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '40px' }}>
-                    <button
-                        onClick={() => setStep(1)}
-                        style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'none', color: '#666', fontSize: '14px' }}
-                    >
-                        <ArrowLeft size={20} /> Back
-                    </button>
-                </div>
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-[40px] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] w-full max-w-[480px] p-8 relative overflow-hidden">
+                <button onClick={() => navigate('/login')} className="absolute top-6 left-6 p-2 text-slate-400 hover:bg-slate-50 rounded-full transition-colors z-20">
+                    <ArrowLeft size={20} />
+                </button>
 
-                {/* Content */}
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-
-                    <div style={{ background: 'var(--primary-color)', borderRadius: '12px', padding: '12px', marginBottom: '24px' }}>
-                        <ShieldCheck size={32} color="white" />
-                    </div>
-
-                    <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '8px' }}>Verify OTP</h1>
-                    <p style={{ color: '#666', marginBottom: '32px', fontSize: '14px' }}>
-                        Enter the 6-digit code sent to <br />
-                        <strong style={{ color: '#333' }}>+91 {formData.phone}</strong>
-                    </p>
-
-                    {/* OTP Inputs */}
-                    <div style={{ display: 'flex', gap: '8px', marginBottom: '32px', justifyContent: 'center' }}>
-                        {otp.map((digit, index) => (
-                            <input
-                                key={index}
-                                ref={el => otpRefs.current[index] = el}
-                                type="text"
-                                maxLength={1}
-                                value={digit}
-                                onChange={(e) => handleOtpChange(index, e.target.value)}
-                                onKeyDown={(e) => handleKeyDown(index, e)}
-                                style={{
-                                    width: '45px',
-                                    height: '50px',
-                                    border: '1px solid #ddd',
-                                    borderRadius: '12px',
-                                    fontSize: '20px',
-                                    textAlign: 'center',
-                                    outline: 'none',
-                                    background: '#f8f9fa',
-                                    transition: 'border-color 0.2s'
-                                }}
-                                onFocus={(e) => e.target.style.borderColor = 'var(--primary-color)'}
-                                onBlur={(e) => e.target.style.borderColor = '#ddd'}
+                <AnimatePresence mode="wait">
+                    {step === 1 ? (
+                        isLoginView ? (
+                            <LoginView
+                                key="login"
+                                loginPhone={loginPhone}
+                                setLoginPhone={setLoginPhone}
+                                onSubmit={handleGetOtp}
+                                onSwitch={() => setIsLoginView(false)}
                             />
-                        ))}
-                    </div>
-
-                    <Button
-                        size="block"
-                        onClick={handleVerifyOtp}
-                        style={{
-                            height: '50px',
-                            fontSize: '16px',
-                            borderRadius: '12px',
-                            backgroundColor: '#6c5ce7' // Using a slightly purplish blue from the screenshot, or stick to primary
-                        }}
-                    >
-                        Verify OTP
-                    </Button>
-
-                    <button
-                        onClick={() => alert(`Resent OTP: ${generatedOtp}`)}
-                        style={{ marginTop: '24px', background: 'none', color: '#666', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                    >
-                        <CheckCircle2 size={16} /> Resend OTP
-                    </button>
-
-                </div>
-
-                {/* Footer */}
-                <div style={{ textAlign: 'center', marginTop: 'auto', color: '#ccc', fontSize: '12px', display: 'flex', justifyContent: 'center', gap: '8px' }}>
-                    <span>Secured with end-to-end encryption</span>
-                </div>
+                        ) : (
+                            <SignUpView
+                                key="signup"
+                                data={signupData}
+                                setData={setSignupData}
+                                onSubmit={handleGetOtp}
+                                onSwitch={() => setIsLoginView(true)}
+                                showCalendar={showCalendar}
+                                setShowCalendar={setShowCalendar}
+                            />
+                        )
+                    ) : (
+                        <OtpView
+                            key="otp"
+                            phone={isLoginView ? loginPhone : signupData.phone}
+                            otp={otp}
+                            setOtp={setOtp}
+                            otpRefs={otpRefs}
+                            onVerify={handleVerifyOtp}
+                            onBack={() => setStep(1)}
+                        />
+                    )}
+                </AnimatePresence>
             </div>
         </div>
     );
 };
 
-const InputGroup = ({ icon, children, style }) => (
-    <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px',
-        padding: '14px',
-        backgroundColor: '#f8f9fa',
-        borderRadius: '12px',
-        border: '1px solid transparent',
-        transition: 'all 0.2s',
-        ...style
-    }}>
-        {icon && <div style={{ color: '#95a5a6' }}>{icon}</div>}
-        {children}
+const InputGroup = ({ icon, label, children, onClick, style }) => (
+    <div onClick={onClick} className="flex flex-col gap-1.5" style={style}>
+        {label && <label className="text-xs font-bold text-slate-500 ml-1">{label}</label>}
+        <div className="flex items-center gap-3 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus-within:border-emerald-500 focus-within:bg-white transition-all">
+            {icon && <div className="text-emerald-500">{icon}</div>}
+            {children}
+        </div>
     </div>
 );
-
-const inputStyle = {
-    border: 'none',
-    background: 'transparent',
-    outline: 'none',
-    fontSize: '16px',
-    width: '100%',
-    color: '#2c3e50',
-    fontWeight: '500'
-};
 
 export default PatientLogin;

@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Store, Key, ShieldCheck, ArrowLeft, Loader2, MapPin, Image as ImageIcon, Phone, User, CheckCircle } from 'lucide-react';
+import { Store, Key, ShieldCheck, ArrowLeft, Loader2, MapPin, Image as ImageIcon, Phone, User, CheckCircle, Copy } from 'lucide-react';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
 import AuthLayout from '../../components/AuthLayout';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Copy } from 'lucide-react';
+import ImageUpload from '../../components/ImageUpload';
 
 const MedicalStoreRegister = () => {
     const navigate = useNavigate();
@@ -38,6 +38,11 @@ const MedicalStoreRegister = () => {
             return;
         }
 
+        if (!formData.image) {
+            setError('Please upload an image of the store front.');
+            return;
+        }
+
         const res = registerMedicalStore({
             ...formData,
             address: formData.selectedAddress || formData.address
@@ -65,12 +70,6 @@ const MedicalStoreRegister = () => {
             setIsLocating(false);
             alert('Location successfully identified via Google Maps!');
         }, 2000);
-    };
-
-    const handleImageUpload = () => {
-        const mockImg = 'https://images.unsplash.com/photo-1586015555751-63bb77f4322a?auto=format&fit=crop&q=80&w=600';
-        setFormData(prev => ({ ...prev, image: mockImg }));
-        alert('Medical store storefront image uploaded successfully!');
     };
 
     if (generatedCode) {
@@ -128,34 +127,11 @@ const MedicalStoreRegister = () => {
                         )}
 
                         {/* Image Upload */}
-                        <div style={{ textAlign: 'center', marginBottom: '10px' }}>
-                            <div
-                                onClick={handleImageUpload}
-                                style={{
-                                    width: '100%',
-                                    height: '160px',
-                                    borderRadius: '16px',
-                                    border: '2px dashed #cbd5e1',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    cursor: 'pointer',
-                                    overflow: 'hidden',
-                                    backgroundColor: '#f8fafc',
-                                    transition: 'all 0.2s'
-                                }}
-                            >
-                                {formData.image ? (
-                                    <img src={formData.image} alt="Store" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                ) : (
-                                    <>
-                                        <ImageIcon size={32} color="#94a3b8" />
-                                        <p style={{ fontSize: '13px', color: '#64748b', marginTop: '8px' }}>Upload Store Storefront</p>
-                                    </>
-                                )}
-                            </div>
-                        </div>
+                        <ImageUpload
+                            label="Store Front View"
+                            image={formData.image}
+                            onImageChange={(img) => setFormData(prev => ({ ...prev, image: img }))}
+                        />
 
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
                             <Input
@@ -245,6 +221,10 @@ const MedicalStoreRegister = () => {
                         <div style={{ marginTop: '10px' }}>
                             <Button type="submit" size="block" disabled={isLocating}>Complete Registration</Button>
                         </div>
+
+                        <p style={{ textAlign: 'center', fontSize: '15px', color: '#1e293b', marginTop: '24px', fontWeight: '500' }}>
+                            Already have an account? <span onClick={() => navigate('/login/medical-store')} style={{ color: 'var(--primary-color)', fontWeight: '700', cursor: 'pointer', textDecoration: 'underline' }}>Login here</span>
+                        </p>
                     </form>
                 </AuthLayout>
             </div>

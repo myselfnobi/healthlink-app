@@ -1,80 +1,101 @@
 import React from 'react';
-import { MapPin, UserCircle, Search, Bell } from 'lucide-react';
+import { UserCircle, Search, Bell } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-const Header = ({ variant = 'default', title, subtitle, searchValue, onSearchChange }) => {
+const Header = ({ variant = 'default', searchValue, onSearchChange }) => {
     const { user } = useAuth();
 
-    // VARIANT: HOME (Blue Header)
+    const getGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour < 12) return 'Good Morning';
+        if (hour < 17) return 'Good Afternoon';
+        return 'Good Evening';
+    };
+
     if (variant === 'home') {
         return (
             <div style={{
-                backgroundColor: '#3b82f6', // Bright Blue
-                padding: '24px 20px',
-                paddingBottom: '32px',
-                borderRadius: '0 0 24px 24px', // Rounded bottom
+                background: 'linear-gradient(145deg, #1d4ed8 0%, #3b82f6 40%, #06b6d4 100%)',
+                padding: '30px 24px 40px',
+                borderRadius: '0 0 var(--r-xl) var(--r-xl)',
                 color: 'white',
-                marginBottom: '24px'
+                marginBottom: '20px',
+                position: 'relative',
+                boxShadow: '0 15px 45px -10px rgba(37, 99, 235, 0.4)'
             }}>
-                {/* Top Row: Greeting + Avatar */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                    <div className="flex-col">
-                        <span style={{ fontSize: '14px', opacity: 0.9 }}>Good Morning</span>
-                        <h1 style={{ fontSize: '22px', fontWeight: 'bold' }}>{user?.name || 'Sarah Johnson'}</h1>
+                {/* Decorative glow */}
+                <div style={{
+                    position: 'absolute',
+                    top: '10%',
+                    right: '10%',
+                    width: '100px',
+                    height: '100px',
+                    background: 'rgba(255, 255, 255, 0.15)',
+                    filter: 'blur(50px)',
+                    borderRadius: '50%'
+                }} />
+
+                <div className="flex justify-between items-center mb-10">
+                    <div className="flex flex-col gap-1">
+                        <span style={{
+                            fontSize: '11px',
+                            fontWeight: '600',
+                            opacity: 0.7,
+                            textTransform: 'uppercase',
+                            letterSpacing: '1.2px'
+                        }}>
+                            {getGreeting()}
+                        </span>
+                        <h1 style={{
+                            fontSize: '28px',
+                            fontWeight: '800',
+                            letterSpacing: '-1px',
+                            textShadow: '0 2px 10px rgba(0,0,0,0.1)',
+                            textTransform: 'capitalize'
+                        }}>
+                            {user?.name || 'Abhinav'}
+                        </h1>
                     </div>
-                    <div style={{ display: 'flex', gap: '12px' }}>
-                        {/* Notification Icon */}
-                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Bell size={20} color="white" />
-                        </div>
-                        {/* Profile Icon */}
-                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <UserCircle size={28} color="#3b82f6" />
-                        </div>
+                    <div className="flex gap-4">
+                        <button className="flex items-center justify-center w-12 h-12 rounded-2xl glass border-none shadow-sm active:scale-90 transition-transform">
+                            <Bell size={20} color="white" strokeWidth={2.5} />
+                        </button>
+                        <button className="flex items-center justify-center p-0.5 rounded-2xl bg-white shadow-lg active:scale-95 transition-transform overflow-hidden">
+                            <UserCircle size={44} color="var(--p-600)" />
+                        </button>
                     </div>
                 </div>
 
-                {/* Emergency SOS Button (Now inside header or just below? Desgin showed inside cyan area?? No, usually separate. Let's put Search here) */}
-
-                {/* Search Bar Embedded in Blue */}
-                <div style={{
-                    backgroundColor: 'white',
-                    borderRadius: '16px',
-                    padding: '12px 16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px'
-                }}>
-                    <Search size={20} color="#9ca3af" />
+                <div className="flex items-center gap-3 glass p-4 rounded-3xl shadow-lg border-none">
+                    <Search size={20} color="white" strokeWidth={2.5} style={{ opacity: 0.9 }} />
                     <input
                         type="text"
-                        placeholder="Search doctor, hospital..."
+                        placeholder="Search doctor, hospital, lab..."
                         value={searchValue}
                         onChange={(e) => onSearchChange && onSearchChange(e.target.value)}
-                        style={{ border: 'none', outline: 'none', width: '100%', fontSize: '14px', color: '#1f2937' }}
+                        style={{
+                            background: 'transparent',
+                            border: 'none',
+                            outline: 'none',
+                            width: '100%',
+                            fontSize: '15px',
+                            color: 'white',
+                            fontWeight: '600',
+                            letterSpacing: '0.2px'
+                        }}
+                        className="placeholder:text-white/60"
                     />
                 </div>
             </div>
         );
     }
 
-
-    // VARIANT: DEFAULT (Standard Header) - Kept for compatibility or detailed pages
     return (
-        <div className="flex justify-between items-center" style={{ padding: '12px 16px', backgroundColor: 'white' }}>
-            <div className="flex-col">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--primary-color)', fontSize: '12px', fontWeight: 'bold' }}>
-                    <MapPin size={14} />
-                    <span>Current Location</span>
-                </div>
-                <div style={{ fontSize: '14px', fontWeight: 'bold' }}>
-                    {user?.address ? user.address.split(',')[0] : 'Hyderabad, India'} <span style={{ fontSize: '10px' }}>▼</span>
-                </div>
-            </div>
-
-            <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <UserCircle size={24} color="#6b7280" />
-            </div>
+        <div className="flex justify-between items-center p-5 bg-white border-b border-border/50">
+            <h1 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--p-700)' }}>HealthLink</h1>
+            <button className="p-1 rounded-2xl bg-p-50">
+                <UserCircle size={28} color="var(--p-600)" />
+            </button>
         </div>
     );
 };

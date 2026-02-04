@@ -1,48 +1,64 @@
 import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Stethoscope, Home, Video } from 'lucide-react';
-import Button from '../components/Button';
-import { hospitals } from '../utils/mockData';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import {
+    ArrowLeft, Stethoscope, Home, Video,
+    ExternalLink, Search, Clock, CheckCircle2,
+    Calendar, AlertCircle, ChevronRight
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+
 import { useAuth } from '../context/AuthContext';
 
 const BookAppointment = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { bookAppointment } = useAuth();
+    const location = useLocation();
+    const { bookAppointment, allHospitals } = useAuth();
 
-    const hospital = hospitals.find(h => h.id === id);
+    const queryParams = new URLSearchParams(location.search);
+    const initialDoctorId = queryParams.get('doctor');
+    const initialVisitType = queryParams.get('type');
 
-    const [selectedDoctor, setSelectedDoctor] = useState(hospital?.doctors[0]?.id || null);
-    const [visitType, setVisitType] = useState('hospital');
+    // Use dynamic hospitals list
+    const hospital = allHospitals.find(h => h.id === id);
+
+    const [selectedDoctor, setSelectedDoctor] = useState(initialDoctorId || hospital?.doctors?.[0]?.id || null);
+    const [visitType, setVisitType] = useState(initialVisitType || 'hospital');
     const [selectedSymptoms, setSelectedSymptoms] = useState([]);
     const [selectedTime, setSelectedTime] = useState(null);
     const [customSymptom, setCustomSymptom] = useState('');
     const [doctorSearch, setDoctorSearch] = useState('');
 
-    if (!hospital) return <div>Hospital not found</div>;
+    if (!hospital) return (
+        <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center">
+            <AlertCircle size={40} className="text-danger mb-4" />
+            <h2 className="text-xl font-bold mb-2">Hospital Not Found</h2>
+            <button onClick={() => navigate('/')} className="btn-primary px-6 py-2 rounded-xl">Back Home</button>
+        </div>
+    );
 
     const symptoms = ['Fever', 'Cough', 'Cold', 'Headache', 'Stomach Pain', 'Etc'];
 
-    // Filter Doctors
-    const filteredDoctors = hospital.doctors.filter(d =>
+    // Safety check for doctors array
+    const doctorsList = hospital.doctors || [];
+
+    const filteredDoctors = doctorsList.filter(d =>
         d.name.toLowerCase().includes(doctorSearch.toLowerCase()) ||
         d.specialty.toLowerCase().includes(doctorSearch.toLowerCase())
     );
 
-    // Get Active Doctor Object
-    const activeDoctor = hospital.doctors.find(d => d.id === selectedDoctor);
-
-    // Dynamic Time Slots (Default or Doctor Specific)
+    const activeDoctor = doctorsList.find(d => d.id === selectedDoctor);
     const baseTimeSlots = ['09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '04:00 PM', '05:00 PM', '06:00 PM'];
 
-    // Logic: If doctor has availability data, use it. Otherwise assume all open (except hardcoded busy for fallback demo)
     const getSlotStatus = (time) => {
         if (activeDoctor?.availability) {
             if (activeDoctor.availability.busy.includes(time)) return 'busy';
             if (activeDoctor.availability.available.includes(time)) return 'available';
-            return 'busy'; // Default to busy if not in available list (strict mode) or 'available' if lenient. Let's strict.
+            // Default logic if no explicit availability set
+            if (activeDoctor.availability.available.length > 0) return 'busy';
+            return 'available';
         }
-        return 'available'; // Fallback
+        return 'available';
     };
 
     const toggleSymptom = (s) => {
@@ -54,19 +70,8 @@ const BookAppointment = () => {
     };
 
     const handleConfirm = () => {
-        // Validation: Busy Time
-        const status = getSlotStatus(selectedTime);
-        if (status === 'busy') {
-            alert('Doctor is not available at this time. Please select another slot.');
-            return;
-        }
+        if (!selectedTime) return;
 
-        if (!selectedTime) {
-            alert('Please select a time slot.');
-            return;
-        }
-
-        // Prepare Symptoms list (replace Etc with custom text if present)
         let finalSymptoms = [...selectedSymptoms];
         if (finalSymptoms.includes('Etc') && customSymptom.trim()) {
             finalSymptoms = finalSymptoms.filter(s => s !== 'Etc');
@@ -86,197 +91,183 @@ const BookAppointment = () => {
 
         if (res.success) {
             navigate('/appointment-success', { state: { appointment: res.appointment } });
-        } else {
-            alert(res.message || 'Failed to book appointment.');
         }
     };
 
     return (
-        <div style={{ padding: '20px', paddingBottom: '100px', backgroundColor: '#fff', minHeight: '100vh' }}>
-            <header style={{ display: 'flex', alignItems: 'center', marginBottom: '24px' }}>
-                <button onClick={() => navigate(-1)} style={{ background: 'none', padding: '8px', marginRight: '8px' }}>
-                    <ArrowLeft size={24} color="#333" />
+        <div className="container min-h-screen bg-[#fcfdfe] pb-32 animate-entrance">
+            <header className="flex items-center gap-4 px-6 py-8 border-b border-border/40">
+                <button
+                    onClick={() => navigate(-1)}
+                    className="w-10 h-10 flex items-center justify-center rounded-2xl glass-dark active:scale-90 transition-transform border-none cursor-pointer"
+                >
+                    <ArrowLeft size={20} className="text-main" strokeWidth={2.5} />
                 </button>
-                <h1 style={{ fontSize: '20px', fontWeight: 'bold' }}>Book Appointment</h1>
+                <h1 className="text-xl font-extrabold tracking-tight text-main">Book Appointment</h1>
             </header>
 
-            {/* Doctor Selection with Search */}
-            <div style={{ marginBottom: '24px' }}>
-                <h3 style={{ fontWeight: 'bold', marginBottom: '12px' }}>Select Doctor</h3>
+            <div className="p-6">
+                {/* Section Header */}
+                <div className="flex items-center gap-2 mb-4">
+                    <div className="w-1 h-5 bg-p-500 rounded-full" />
+                    <h3 className="text-sm font-black text-muted uppercase tracking-wider">Select Doctor</h3>
+                </div>
 
                 {/* Search Bar */}
-                <div style={{ marginBottom: '12px', padding: '12px', backgroundColor: '#f9f9f9', borderRadius: '12px', display: 'flex', alignItems: 'center' }}>
+                <div className="flex items-center gap-3 glass p-4 rounded-[20px] mb-6 shadow-sm border-none">
+                    <Search size={18} className="text-muted" strokeWidth={2.5} />
                     <input
                         type="text"
-                        placeholder="Search by name or specialty..."
+                        placeholder="Search doctor or specialty..."
                         value={doctorSearch}
                         onChange={(e) => setDoctorSearch(e.target.value)}
-                        style={{ border: 'none', background: 'transparent', outline: 'none', width: '100%', fontSize: '14px' }}
+                        className="bg-transparent border-none outline-none w-full text-sm font-bold text-main placeholder:text-muted/50"
                     />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {filteredDoctors.length > 0 ? (
-                        filteredDoctors.map(doc => (
-                            <button
-                                key={doc.id}
-                                onClick={() => { setSelectedDoctor(doc.id); setSelectedTime(null); }}
-                                style={{
-                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                    padding: '16px',
-                                    border: `2px solid ${selectedDoctor === doc.id ? 'var(--primary-color)' : '#f0f0f0'}`,
-                                    borderRadius: '12px',
-                                    background: selectedDoctor === doc.id ? '#f0fff4' : 'fff',
-                                    cursor: 'pointer'
-                                }}
-                            >
-                                <div>
-                                    <div style={{ fontWeight: 'bold' }}>{doc.name}</div>
-                                    <div style={{ fontSize: '12px', color: '#666' }}>{doc.specialty}</div>
-                                </div>
-                                <div style={{
-                                    width: '20px', height: '20px', borderRadius: '50%',
-                                    border: '2px solid #ccc',
-                                    backgroundColor: selectedDoctor === doc.id ? 'var(--primary-color)' : 'transparent'
-                                }} />
-                            </button>
-                        ))
+                {/* Doctor Grid/List */}
+                <div className="flex flex-col gap-4 mb-8">
+                    {filteredDoctors.length === 0 ? (
+                        <p className="text-center text-muted font-bold py-4">No doctors found.</p>
                     ) : (
-                        <p style={{ color: '#999', fontSize: '14px', textAlign: 'center' }}>No doctors found matching "{doctorSearch}"</p>
+                        filteredDoctors.map(doc => {
+                            const isSelected = selectedDoctor === doc.id;
+                            return (
+                                <button
+                                    key={doc.id}
+                                    onClick={() => { setSelectedDoctor(doc.id); setSelectedTime(null); }}
+                                    className={`flex items-center gap-4 p-4 rounded-[24px] transition-all duration-300 border-none cursor-pointer text-left ${isSelected ? 'bg-p-50 shadow-md ring-2 ring-p-500/20' : 'bg-white shadow-sm hover:shadow-md'
+                                        }`}
+                                >
+                                    <div className="relative">
+                                        <img src={doc.image || 'https://via.placeholder.com/150'} alt={doc.name} className="w-14 h-14 rounded-2xl object-cover" />
+                                        {isSelected && (
+                                            <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-p-500 border-2 border-white flex items-center justify-center">
+                                                <CheckCircle2 size={12} color="white" strokeWidth={3} />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex-1">
+                                        <h4 className={`text-[15px] font-black tracking-tight leading-tight ${isSelected ? 'text-p-700' : 'text-main'}`}>
+                                            {doc.name}
+                                        </h4>
+                                        <p className="text-[11px] font-bold text-muted uppercase tracking-wider">{doc.specialty}</p>
+                                        <div className="flex items-center gap-1 mt-1">
+                                            <span className="text-[10px] font-bold text-p-600">View Profile</span>
+                                            <ChevronRight size={10} className="text-p-600" />
+                                        </div>
+                                    </div>
+                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? 'border-p-500 bg-p-500' : 'border-border'
+                                        }`}>
+                                        {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+                                    </div>
+                                </button>
+                            );
+                        })
                     )}
                 </div>
-            </div>
 
-            {/* Dynamic Time Slot Selection */}
-            <div style={{ marginBottom: '24px' }}>
-                <h3 style={{ fontWeight: 'bold', marginBottom: '12px' }}>Select Time</h3>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                {/* Time Selection */}
+                <div className="flex items-center gap-2 mb-5">
+                    <div className="w-1 h-5 bg-p-500 rounded-full" />
+                    <h3 className="text-sm font-black text-muted uppercase tracking-wider">Select Available Time</h3>
+                </div>
+
+                <div className="grid grid-cols-4 gap-2 mb-8">
                     {baseTimeSlots.map(time => {
-                        const status = getSlotStatus(time); // 'available' | 'busy'
+                        const status = getSlotStatus(time);
                         const isBusy = status === 'busy';
                         const isSelected = selectedTime === time;
                         return (
                             <button
                                 key={time}
-                                onClick={() => !isBusy && setSelectedTime(time)}
-                                style={{
-                                    padding: '10px 16px',
-                                    borderRadius: '12px',
-                                    border: `1px solid ${isSelected ? 'var(--primary-color)' : '#e0e0e0'}`,
-                                    backgroundColor: isSelected ? 'var(--primary-color)' : (isBusy ? '#ffebee' : 'white'),
-                                    color: isSelected ? 'white' : (isBusy ? '#c62828' : '#333'),
-                                    fontSize: '14px',
-                                    fontWeight: '500',
-                                    cursor: isBusy ? 'not-allowed' : 'pointer',
-                                    opacity: isBusy ? 0.6 : 1
-                                }}
+                                disabled={isBusy}
+                                onClick={() => setSelectedTime(time)}
+                                className={`py-3 px-1 rounded-xl text-[10px] font-black tracking-tighter transition-all duration-300 border-none cursor-pointer flex flex-col items-center gap-0.5 ${isSelected
+                                    ? 'bg-p-600 text-white shadow-lg shadow-p-600/20 active:scale-95'
+                                    : (isBusy ? 'bg-slate-50 text-slate-300 cursor-not-allowed grayscale' : 'bg-white text-main shadow-sm hover:ring-1 hover:ring-p-500/30')
+                                    }`}
                             >
-                                {time} {isBusy && <span style={{ fontSize: '10px' }}>(Busy)</span>}
+                                <Clock size={12} strokeWidth={3} className={isSelected ? 'text-white' : (isBusy ? 'text-slate-200' : 'text-p-500')} />
+                                <span>{time}</span>
+                                {isBusy && <span className="opacity-50 text-[8px] mt-0.5">BUSY</span>}
                             </button>
                         );
                     })}
                 </div>
-            </div>
 
-            {/* Visit Type */}
-            <div style={{ marginBottom: '24px' }}>
-                <h3 style={{ fontWeight: 'bold', marginBottom: '12px' }}>Visit Type</h3>
-                <div style={{ display: 'flex', gap: '12px' }}>
-                    <TypeCard
-                        icon={<Home size={20} />} label="Hospital"
-                        selected={visitType === 'hospital'}
-                        onClick={() => setVisitType('hospital')}
-                    />
-                    <TypeCard
-                        icon={<Video size={20} />} label="Online"
-                        selected={visitType === 'online'}
-                        onClick={() => setVisitType('online')}
-                    />
-                    <TypeCard
-                        icon={<Stethoscope size={20} />} label="Home"
-                        selected={visitType === 'home'}
-                        onClick={() => setVisitType('home')}
-                    />
+                {/* Visit Type */}
+                <div className="flex items-center gap-2 mb-5">
+                    <div className="w-1 h-5 bg-p-500 rounded-full" />
+                    <h3 className="text-sm font-black text-muted uppercase tracking-wider">Visit Type</h3>
                 </div>
-            </div>
-
-            {/* Symptom Selector */}
-            <div style={{ marginBottom: '32px' }}>
-                <h3 style={{ fontWeight: 'bold', marginBottom: '12px' }}>What's the problem?</h3>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '12px' }}>
-                    {symptoms.map(sym => (
-                        <button
-                            key={sym}
-                            onClick={() => toggleSymptom(sym)}
-                            style={{
-                                padding: '8px 16px',
-                                borderRadius: '20px',
-                                border: '1px solid #e0e0e0',
-                                backgroundColor: selectedSymptoms.includes(sym) ? 'var(--primary-color)' : 'white',
-                                color: selectedSymptoms.includes(sym) ? 'white' : '#666',
-                                fontSize: '14px',
-                                fontWeight: '500',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s'
-                            }}
-                        >
-                            {sym}
-                        </button>
-                    ))}
+                <div className="flex gap-3 mb-8">
+                    {[
+                        { id: 'hospital', label: 'Hospital', icon: <Home size={20} /> },
+                        { id: 'online', label: 'Online', icon: <Video size={20} /> },
+                        { id: 'home', label: 'Home', icon: <Stethoscope size={20} /> }
+                    ].map(type => {
+                        const isSelected = visitType === type.id;
+                        return (
+                            <button
+                                key={type.id}
+                                onClick={() => setVisitType(type.id)}
+                                className={`flex-1 flex flex-col items-center gap-2 p-4 rounded-2xl glass transition-all border-none cursor-pointer ${isSelected ? 'bg-p-500/10 ring-2 ring-p-500 shadow-lg' : 'bg-white border-border/50'
+                                    }`}
+                            >
+                                <div className={isSelected ? 'text-p-600' : 'text-muted'}>{type.icon}</div>
+                                <span className={`text-[11px] font-black uppercase tracking-wider ${isSelected ? 'text-p-700' : 'text-muted'}`}>
+                                    {type.label}
+                                </span>
+                            </button>
+                        )
+                    })}
                 </div>
 
-                {/* Custom Symptom Textarea */}
+                {/* Symptoms Selector */}
+                <div className="flex items-center gap-2 mb-5">
+                    <div className="w-1 h-5 bg-p-500 rounded-full" />
+                    <h3 className="text-sm font-black text-muted uppercase tracking-wider">Symptoms</h3>
+                </div>
+                <div className="flex flex-wrap gap-2 mb-6">
+                    {symptoms.map(sym => {
+                        const isSelected = selectedSymptoms.includes(sym);
+                        return (
+                            <button
+                                key={sym}
+                                onClick={() => toggleSymptom(sym)}
+                                className={`px-4 py-2.5 rounded-full text-[12px] font-extrabold tracking-tight transition-all border-none cursor-pointer ${isSelected ? 'bg-p-600 text-white shadow-md' : 'glass-dark text-muted font-bold hover:bg-p-50'
+                                    }`}
+                            >
+                                {sym}
+                            </button>
+                        )
+                    })}
+                </div>
+
                 {selectedSymptoms.includes('Etc') && (
-                    <textarea
-                        type="text"
-                        placeholder="Please describe your problem here..."
-                        value={customSymptom}
-                        onChange={(e) => setCustomSymptom(e.target.value)}
-                        style={{
-                            width: '100%',
-                            padding: '12px',
-                            borderRadius: '12px',
-                            border: '1px solid #e0e0e0',
-                            fontSize: '14px',
-                            outline: 'none',
-                            fontFamily: 'inherit',
-                            minHeight: '80px'
-                        }}
-                    />
+                    <div className="animate-entrance">
+                        <textarea
+                            placeholder="Please describe your symptoms in detail..."
+                            value={customSymptom}
+                            onChange={(e) => setCustomSymptom(e.target.value)}
+                            className="w-full glass p-5 rounded-3xl text-sm font-bold text-main placeholder:text-muted/40 outline-none border-none shadow-sm min-h-[120px] mb-8"
+                        />
+                    </div>
                 )}
             </div>
 
-            {/* Footer Action */}
-            <div style={{
-                position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
-                width: '100%', maxWidth: '480px',
-                padding: '16px', backgroundColor: 'white', borderTop: '1px solid #eee'
-            }}>
-                <Button size="block" onClick={handleConfirm} disabled={!selectedDoctor || !selectedTime}>
-                    Confirm Appointment
-                </Button>
+            {/* Floating Confirm Island */}
+            <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 w-[calc(100%-48px)] max-w-[420px] p-2 rounded-[32px] glass shadow-2xl z-[1000] border-white transition-all duration-500 ${selectedTime ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'}`}>
+                <button
+                    onClick={handleConfirm}
+                    className="w-full btn-primary h-16 rounded-[24px] flex items-center justify-center gap-3 active:scale-95 transition-all text-lg font-black tracking-tight border-none cursor-pointer"
+                >
+                    <Calendar size={22} strokeWidth={2.5} /> Confirm Booking
+                </button>
             </div>
         </div>
     );
 };
-
-const TypeCard = ({ icon, label, selected, onClick }) => (
-    <button
-        onClick={onClick}
-        style={{
-            flex: 1,
-            padding: '12px',
-            borderRadius: '12px',
-            border: `1px solid ${selected ? 'var(--primary-color)' : '#f0f0f0'}`,
-            backgroundColor: selected ? '#f0fff4' : '#fff',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px',
-            color: selected ? 'var(--primary-color)' : '#666',
-            cursor: 'pointer'
-        }}
-    >
-        {icon}
-        <span style={{ fontSize: '12px', fontWeight: 'bold' }}>{label}</span>
-    </button>
-);
 
 export default BookAppointment;

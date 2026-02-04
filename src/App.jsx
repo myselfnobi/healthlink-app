@@ -21,6 +21,8 @@ import MedicalStoreDashboard from './pages/MedicalStoreDashboard';
 import MedicalStoreLogin from './pages/auth/MedicalStoreLogin';
 import MedicalStoreRegister from './pages/auth/MedicalStoreRegister';
 import PatientDashboard from './pages/PatientDashboard';
+import DoctorProfile from './pages/DoctorProfile';
+
 
 
 
@@ -47,6 +49,8 @@ function App() {
 
           {/* Phase 2 Routes */}
           <Route path="hospital/:id" element={<HospitalDetail />} />
+          <Route path="doctor/:id" element={<DoctorProfile />} />
+
 
           {/* Phase 3 Routes */}
           <Route path="book-appointment/:id" element={<BookAppointment />} />

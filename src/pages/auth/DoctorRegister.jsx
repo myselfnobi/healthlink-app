@@ -4,6 +4,7 @@ import AuthLayout from '../../components/AuthLayout';
 import Input from '../../components/Input';
 import Button from '../../components/Button';
 import { useAuth } from '../../context/AuthContext';
+import ImageUpload from '../../components/ImageUpload';
 
 const DoctorRegister = () => {
     const navigate = useNavigate();
@@ -18,6 +19,7 @@ const DoctorRegister = () => {
     const [birthDate, setBirthDate] = useState('');
     const [age, setAge] = useState('');
     const [error, setError] = useState('');
+    const [image, setImage] = useState(null);
 
     // Auto-calculate age from birthDate
     React.useEffect(() => {
@@ -37,6 +39,12 @@ const DoctorRegister = () => {
 
     const handleRegister = (e) => {
         e.preventDefault();
+
+        if (!image) {
+            setError("Please upload a profile photo.");
+            return;
+        }
+
         const data = {
             name,
             specialty: doctorType === 'rmp' ? 'RMP Doctor' : specialty,
@@ -45,7 +53,8 @@ const DoctorRegister = () => {
             hospitalName,
             phone,
             birthDate,
-            age
+            age,
+            image // Add image to data
         };
         const result = registerDoctor(data);
         if (result.success) {
@@ -61,6 +70,14 @@ const DoctorRegister = () => {
             <div className="auth-card">
                 <AuthLayout title="Doctor Registration" subtitle="Join a Hospital" showBack={true}>
                     <form onSubmit={handleRegister} className="flex-col" style={{ gap: 'var(--spacing-md)' }}>
+
+                        {/* Image Upload */}
+                        <ImageUpload
+                            label="Profile Photo"
+                            image={image}
+                            onImageChange={setImage}
+                            className="mb-2"
+                        />
 
                         <div style={{ display: 'flex', gap: '12px', marginBottom: '8px' }}>
                             <label style={{
@@ -146,6 +163,10 @@ const DoctorRegister = () => {
                         <div style={{ marginTop: 'var(--spacing-md)' }}>
                             <Button type="submit" size="block">Submit Request</Button>
                         </div>
+
+                        <p style={{ textAlign: 'center', fontSize: '15px', color: '#1e293b', marginTop: '24px', fontWeight: '500' }}>
+                            Already have an account? <span onClick={() => navigate('/login/doctor')} style={{ color: 'var(--primary-color)', fontWeight: '700', cursor: 'pointer', textDecoration: 'underline' }}>Login here</span>
+                        </p>
                     </form>
                 </AuthLayout>
             </div>

@@ -4,7 +4,7 @@ import {
     Calendar, Clock, MapPin, User, LogOut, Package, Video,
     AlertCircle, Send, Bot, User as UserIcon, Loader2, ShoppingBag,
     Search, Upload, Star, Navigation, Plus, FileText, Zap, DollarSign, ChevronRight,
-    Bike, CheckCircle, Map, ArrowLeft, Phone, PhoneOff, MicOff, Bell
+    Bike, CheckCircle, Map, ArrowLeft, Phone, PhoneOff, MicOff, Bell, ShieldCheck
 } from 'lucide-react';
 
 import { motion, AnimatePresence } from 'framer-motion';
@@ -22,6 +22,9 @@ const HomeTab = ({ navigate }) => {
     const { user } = useAuth();
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState(null);
+    const [sortBy, setSortBy] = useState('distance'); // 'distance', 'cost', 'rating'
+    const [isLoading, setIsLoading] = useState(false);
+    const [isCallingSOS, setIsCallingSOS] = useState(false);
 
     const handleCategorySelect = (catId) => {
         if (selectedCategory === catId) setSelectedCategory(null);
@@ -40,24 +43,19 @@ const HomeTab = ({ navigate }) => {
         // 2. Match Category
         let categoryMatch = true;
         if (selectedCategory) {
-            if (selectedCategory === 'general') {
-                categoryMatch = true; // Show All
-            } else if (selectedCategory === 'more') {
-                // More = RMP and Eyes
-                const targetSpecialties = ['rmp doctor', 'ophthalmologist', 'eye specialist'];
-                categoryMatch = hospitalSpecialties.some(s =>
-                    targetSpecialties.some(t => s.toLowerCase().includes(t))
-                );
-            } else {
-                const categoryMap = {
-                    'heart': ['cardiologist'],
-                    'child': ['pediatrician']
-                };
-                const targetSpecialties = categoryMap[selectedCategory] || [];
-                categoryMatch = hospitalSpecialties.some(s =>
-                    targetSpecialties.some(t => s.toLowerCase().includes(t))
-                );
-            }
+            const categoryMap = {
+                'general': ['rmp doctor', 'general physician'],
+                'heart': ['cardiologist'],
+                'child': ['pediatrician'],
+                'ent': ['ent specialist', 'ophthalmologist', 'eye specialist'],
+                'lab': ['pathology', 'diagnostic', 'lab'],
+                'more': ['dermatologist', 'orthopedic', 'dentist']
+            };
+
+            const targetSpecialties = categoryMap[selectedCategory] || [];
+            categoryMatch = hospitalSpecialties.some(s =>
+                targetSpecialties.some(t => s.toLowerCase().includes(t))
+            ) || (selectedCategory === 'lab' && h.facilities?.some(f => f.toLowerCase().includes('lab')));
         }
 
         return (nameMatch || specialtyMatch) && categoryMatch;
@@ -71,77 +69,278 @@ const HomeTab = ({ navigate }) => {
     };
 
     const handleSOS = () => {
-        window.location.href = "tel:108";
+        setIsCallingSOS(true);
+        setTimeout(() => {
+            setIsCallingSOS(false);
+            window.location.href = "tel:108";
+        }, 1500);
     };
 
+    const categories = [
+        { id: 'general', name: 'General', sub: 'RMP', icon: '🩺', color: '#eff6ff' },
+        { id: 'heart', name: 'Heart', sub: 'Cardiology', icon: '❤️', color: '#fff1f2' },
+        { id: 'child', name: 'Child', sub: 'Pediatrics', icon: '👶', color: '#f0fdf4' },
+        { id: 'ent', name: 'ENT', sub: 'Specialist', icon: '👂', color: '#fffbeb' },
+        { id: 'lab', name: 'Lab Tests', sub: 'Diagnostic', icon: '🧪', color: '#f5f3ff' },
+        { id: 'more', name: 'More', sub: 'Services', icon: '➕', color: '#f8fafc' }
+    ];
+
     return (
-        <div className="pb-24">
+        <div className="pb-24 animate-fade-in transition-all">
             <Header variant="home" searchValue={searchTerm} onSearchChange={setSearchTerm} />
 
             <div className="px-5">
-                {isBirthday() && (
-                    <div className="card-elevated mb-5 p-4 text-center bg-gradient-to-r from-pink-100 to-blue-100 border border-blue-200">
-                        <h3 className="text-lg font-bold text-blue-800 mb-1">🎉 Happy Birthday, {user.name}! 🎂</h3>
-                        <p className="text-xs text-gray-700">Wishing you a healthy and wonderful day ahead!</p>
+                {/* Active Appointment Tracker - Dynamic Status Card */}
+                <AnimatePresence>
+                    {(() => {
+                        const { appointments } = useAuth();
+                        const activeAppt = appointments
+                            .filter(a => a.status === 'Accepted' || a.status === 'Confirmed')
+                            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+
+                        if (!activeAppt) return null;
+
+                        // Countdown Logic
+                        const [timeLeft, setTimeLeft] = useState('');
+
+                        useEffect(() => {
+                            const timer = setInterval(() => {
+                                // Assume "Today" if not specified. Convert "09:00 AM" to Date object.
+                                const today = new Date();
+                                const [time, modifier] = activeAppt.time.split(' ');
+                                let [hours, minutes] = time.split(':');
+                                if (hours === '12') hours = '00';
+                                if (modifier === 'PM') hours = parseInt(hours, 10) + 12;
+
+                                const target = new Date(today.getFullYear(), today.getMonth(), today.getDate(), hours, minutes, 0);
+                                const diff = target - today;
+
+                                if (diff <= 0) {
+                                    setTimeLeft('Appointment Started');
+                                    clearInterval(timer);
+                                } else {
+                                    const h = Math.floor(diff / 3600000);
+                                    const m = Math.floor((diff % 3600000) / 60000);
+                                    const s = Math.floor((diff % 60000) / 1000);
+                                    setTimeLeft(`${h > 0 ? h + 'h ' : ''}${m}m ${s}s`);
+                                }
+                            }, 1000);
+                            return () => clearInterval(timer);
+                        }, [activeAppt.time]);
+
+                        const isStarted = timeLeft === 'Appointment Started';
+
+                        return (
+                            <motion.div
+                                initial={{ opacity: 0, y: -20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className={`mb-8 p-6 glass rounded-[32px] shadow-lg relative overflow-hidden group border-2 ${isStarted ? 'border-success/30' : 'border-p-500/20'
+                                    }`}
+                                style={{
+                                    background: isStarted
+                                        ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(255, 255, 255, 0.9) 100%)'
+                                        : 'linear-gradient(135deg, rgba(37, 99, 235, 0.05) 0%, rgba(255, 255, 255, 0.9) 100%)'
+                                }}
+                            >
+                                <div className="absolute top-0 right-0 p-4">
+                                    <div className={`w-2 h-2 rounded-full animate-ping ${isStarted ? 'bg-success' : 'bg-p-500'}`} />
+                                </div>
+
+                                <div className="flex items-center gap-4 mb-4">
+                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg ${isStarted ? 'bg-success shadow-success/20' : 'bg-p-600 shadow-p-600/20'
+                                        }`}>
+                                        <Clock size={24} className="text-white animate-pulse" />
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className={`text-[10px] font-black uppercase tracking-widest ${isStarted ? 'text-success' : 'text-p-600'
+                                            }`}>
+                                            {isStarted ? 'Live Now' : 'Starts In'}
+                                        </span>
+                                        <h3 className="text-xl font-black text-main leading-none mt-0.5">
+                                            {timeLeft || 'Calculating...'}
+                                        </h3>
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-between items-center bg-white/60 p-4 rounded-2xl border border-white/60 shadow-inner">
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] font-bold text-muted uppercase">Doctor</span>
+                                        <span className="text-sm font-black text-main">{activeAppt.doctorName}</span>
+                                    </div>
+                                    <div className="flex flex-col text-right">
+                                        <span className="text-[10px] font-bold text-muted uppercase">Location</span>
+                                        <span className="text-sm font-black text-main">{activeAppt.hospitalName}</span>
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={() => navigate('/?tab=appointments')}
+                                    className={`w-full mt-4 py-4 rounded-2xl text-white font-black text-[13px] uppercase tracking-wider shadow-xl transition-all active:scale-95 border-none cursor-pointer ${isStarted ? 'bg-success shadow-success/20 hover:bg-emerald-600' : 'bg-p-600 shadow-p-600/20 hover:bg-p-700'
+                                        }`}
+                                >
+                                    {isStarted ? 'Join Meeting / Check In' : 'View Details'}
+                                </button>
+                            </motion.div>
+                        );
+                    })()}
+                </AnimatePresence>
+                {/* SOS Section - Glowing Glass Console */}
+                <button
+                    onClick={handleSOS}
+                    disabled={isCallingSOS}
+                    className="flex justify-between items-center w-full mb-10 p-6 rounded-[32px] relative overflow-hidden group border-none shadow-sos"
+                    style={{ background: 'linear-gradient(135deg, #ff4d4d 0%, #db2777 100%)' }}
+                >
+                    {/* Animated Glow layer */}
+                    <div className="absolute inset-0 opacity-40 mix-blend-overlay bg-gradient-to-r from-transparent via-white to-transparent -translate-x-full animate-[shimmer_3s_infinite]" />
+
+                    <div className="flex items-center gap-5 z-10 text-left">
+                        <div className="flex items-center justify-center p-3.5 rounded-2xl glass-dark shadow-sm">
+                            <div className={`p-0.5 rounded-full ${isCallingSOS ? 'animate-ping' : ''}`} style={{ backgroundColor: 'white' }}>
+                                <AlertCircle size={28} className="text-danger" />
+                            </div>
+                        </div>
+                        <div className="flex flex-col">
+                            <h2 style={{ color: 'white', fontWeight: '800', fontSize: '19px', lineHeight: '1.2' }}>
+                                {isCallingSOS ? "Calling Help..." : "SOS – Emergency"}
+                            </h2>
+                            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '11px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.8px', marginTop: '2px' }}>
+                                Instant Ambulance Call
+                            </p>
+                        </div>
+                    </div>
+                    <div className="glass-dark p-2.5 rounded-2xl z-10 shadow-sm transition-transform group-active:scale-90">
+                        <ChevronRight size={22} color="white" strokeWidth={3} />
+                    </div>
+                </button>
+
+                {searchTerm.length === 0 && (
+                    <div className="mb-10">
+                        <div className="flex justify-between items-end mb-6">
+                            <div>
+                                <h3 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-main)', letterSpacing: '-0.5px' }}>
+                                    Find Specialist
+                                </h3>
+                                <div style={{ height: '3px', width: '24px', backgroundColor: 'var(--p-500)', borderRadius: '2px', marginTop: '3px' }} />
+                            </div>
+                            <button style={{ color: 'var(--p-600)', fontSize: '13px', fontWeight: '700', padding: '0 4px' }}>See All</button>
+                        </div>
+
+                        {/* 3-Column Glass Grid */}
+                        <div className="grid grid-cols-3 gap-4">
+                            {categories.map((cat) => {
+                                const isActive = selectedCategory === cat.id;
+                                return (
+                                    <button
+                                        key={cat.id}
+                                        onClick={() => handleCategorySelect(cat.id)}
+                                        className={`flex flex-col items-center justify-center aspect-square gap-3 rounded-[32px] transition-all duration-300 border-none ${isActive
+                                            ? 'btn-primary scale-[1.08] shadow-primary'
+                                            : 'glass shadow-sm hover:shadow-md'
+                                            }`}
+                                    >
+                                        <div style={{
+                                            fontSize: '28px',
+                                            filter: isActive ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none',
+                                            transform: isActive ? 'scale(1.1)' : 'scale(1)'
+                                        }}>
+                                            {cat.icon}
+                                        </div>
+                                        <div className="flex flex-col items-center gap-0">
+                                            <span style={{
+                                                fontSize: '12px',
+                                                fontWeight: '800',
+                                                color: isActive ? 'white' : 'var(--text-main)',
+                                                letterSpacing: '-0.2px'
+                                            }}>
+                                                {cat.name}
+                                            </span>
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
                 )}
 
-                {/* SOS Button - Using design system */}
-                <button
-                    onClick={handleSOS}
-                    className="cta-button mb-6 bg-destructive text-destructive-foreground shadow-lg shadow-destructive/30 flex items-center justify-center gap-2"
-                >
-                    <AlertCircle size={24} />
-                    Emergency SOS
-                </button>
+                {/* Floating Glass Filter Bar */}
+                <AnimatePresence>
+                    {selectedCategory && (
+                        <motion.div
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.8, opacity: 0 }}
+                            className="sticky top-6 z-50 mb-10 flex gap-2 p-1.5 glass rounded-full shadow-lg"
+                        >
+                            {['distance', 'cost', 'rating'].map((option) => (
+                                <button
+                                    key={option}
+                                    onClick={() => setSortBy(option)}
+                                    className={`flex-1 py-3 px-3 rounded-full text-[12px] font-bold capitalize transition-all border-none ${sortBy === option
+                                        ? 'bg-p-600 text-white shadow-md'
+                                        : 'text-muted'
+                                        }`}
+                                >
+                                    {option}
+                                </button>
+                            ))}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
-                {searchTerm.length === 0 ? (
-                    <>
-                        <CategoryGrid onSelect={handleCategorySelect} selectedId={selectedCategory} />
+                <div className="mt-4">
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 style={{ fontSize: '18px', fontWeight: '800' }}>
+                            {searchTerm ? 'Search Results' : (selectedCategory ? 'Best Specialists' : 'Hospitals Nearby')}
+                        </h3>
+                        <span style={{
+                            fontSize: '11px',
+                            fontWeight: '700',
+                            background: 'var(--p-100)',
+                            color: 'var(--p-700)',
+                            padding: '4px 10px',
+                            borderRadius: '10px'
+                        }}>
+                            {filteredHospitals.length} FOUND
+                        </span>
+                    </div>
 
-                        <div className="mt-8">
-                            <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-lg font-bold text-gray-800">
-                                    {selectedCategory === 'general' ? 'All Hospitals' : (selectedCategory ? `${selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)} Specialists` : 'Nearby Hospitals')}
-                                </h3>
-                                <span className="text-primary text-sm font-semibold">See All</span>
-                            </div>
-
-                            <div className="flex flex-col gap-4">
-                                {hospitals.map(hospital => (
+                    <div className="flex flex-col gap-4">
+                        {isLoading ? (
+                            Array(3).fill(0).map((_, i) => (
+                                <div key={i} className="card-premium h-48 skeleton" />
+                            ))
+                        ) : filteredHospitals.length > 0 ? (
+                            filteredHospitals
+                                .sort((a, b) => {
+                                    if (sortBy === 'distance') return parseFloat(a.distance) - parseFloat(b.distance);
+                                    if (sortBy === 'rating') return b.rating - a.rating;
+                                    return 0;
+                                })
+                                .map(hospital => (
                                     <HospitalCard
                                         key={hospital.id}
                                         hospital={hospital}
                                         onClick={() => navigate(`/hospital/${hospital.id}`)}
                                     />
-                                ))}
-                            </div>
-                        </div>
-                    </>
-                ) : (
-                    <div className="mt-4">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-bold text-gray-800">Search Results</h3>
-                            <span className="text-muted-foreground text-xs">{filteredHospitals.length} Found</span>
-                        </div>
-
-                        {filteredHospitals.length > 0 ? (
-                            <div className="flex flex-col gap-4">
-                                {filteredHospitals.map(hospital => (
-                                    <HospitalCard
-                                        key={hospital.id}
-                                        hospital={hospital}
-                                        onClick={() => navigate(`/hospital/${hospital.id}`)}
-                                    />
-                                ))}
-                            </div>
+                                ))
                         ) : (
-                            <div className="text-center text-muted-foreground mt-10">
-                                <p>No hospitals found matching "{searchTerm}"</p>
+                            <div className="text-center py-16 px-6 card-premium glass border-dashed">
+                                <div className="bg-p-100 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm">
+                                    <Search size={32} className="text-p-600" strokeWidth={2.5} />
+                                </div>
+                                <h4 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '4px' }}>Found No Hospitals</h4>
+                                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '24px' }}>Try a different category or refining search.</p>
+                                <button
+                                    onClick={() => { setSelectedCategory(null); setSearchTerm(''); }}
+                                    className="px-8 py-3.5 btn-primary rounded-2xl text-sm border-none cursor-pointer"
+                                >
+                                    Reset Discovery
+                                </button>
                             </div>
                         )}
                     </div>
-                )}
+                </div>
             </div>
         </div>
     );
@@ -239,9 +438,15 @@ const AppointmentsTab = () => {
                                 <AppointmentCountdown targetTime={appt.time} />
                             )}
                             <div style={{ marginTop: '12px' }}>
-                                <h3 style={{ fontWeight: 'bold', fontSize: '16px' }}>{appt.doctorName}</h3>
+                                <h3
+                                    style={{ fontWeight: 'bold', fontSize: '16px', cursor: 'pointer', color: 'var(--primary-color)' }}
+                                    onClick={() => navigate(`/doctor/${appt.doctorId}`)}
+                                >
+                                    {appt.doctorName}
+                                </h3>
                                 <p style={{ color: '#666', fontSize: '14px', marginBottom: '8px' }}>{appt.hospitalName}</p>
                             </div>
+
 
                             <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: '12px', display: 'flex', gap: '16px', fontSize: '12px' }}>
                                 <span>📅 Today</span>
@@ -916,75 +1121,119 @@ const StoreTab = () => {
 };
 
 const ProfileTab = ({ user, logout }) => (
-    <div style={{ padding: '20px', paddingTop: '40px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
-            <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: '#e0e0e0' }} />
-            <div>
-                <h2 style={{ fontSize: '20px', fontWeight: 'bold' }}>{user?.name}</h2>
-                <p style={{ color: '#666' }}>{user?.phone}</p>
+    <div className="pb-32 animate-entrance">
+        {/* Profile Header */}
+        <div className="relative mb-8">
+            <div className="h-40 bg-gradient-to-r from-p-600 to-p-500 rounded-b-[40px] shadow-lg shadow-p-600/20" />
+            <div className="px-6 -mt-12 flex flex-col items-center">
+                <div className="w-24 h-24 rounded-full bg-white p-1 shadow-xl mb-4">
+                    <div className="w-full h-full rounded-full bg-slate-100 flex items-center justify-center overflow-hidden">
+                        <UserIcon size={40} className="text-slate-400" />
+                    </div>
+                </div>
+                <h2 className="text-2xl font-black text-main">{user?.name}</h2>
+                <p className="text-sm font-bold text-muted opacity-80">{user?.phone || '+91 98765 43210'}</p>
             </div>
         </div>
 
-        <Button size="block" variant="danger" onClick={logout}>Logout</Button>
+        {/* Menu Items */}
+        <div className="px-6 flex flex-col gap-4">
+            {[
+                { icon: User, label: 'Edit Profile' },
+                { icon: FileText, label: 'Medical Records' },
+                { icon: Bell, label: 'Notifications' },
+                { icon: ShieldCheck, label: 'Privacy & Security' },
+                { icon: Bot, label: 'Help & Support' },
+            ].map((item, i) => (
+                <button key={i} className="flex items-center gap-4 p-4 rounded-[24px] bg-white border border-slate-100 shadow-sm hover:bg-slate-50 transition-colors active:scale-95 group">
+                    <div className="w-10 h-10 rounded-2xl bg-p-50 flex items-center justify-center group-hover:bg-p-100 transition-colors">
+                        <item.icon size={20} className="text-p-600" />
+                    </div>
+                    <span className="flex-1 text-left text-sm font-bold text-main">{item.label}</span>
+                    <ChevronRight size={18} className="text-slate-300" />
+                </button>
+            ))}
+
+            {/* Logout Button */}
+            <button
+                onClick={logout}
+                className="mt-4 flex items-center gap-4 p-4 rounded-[24px] bg-red-50 border border-red-100 shadow-sm active:scale-95 transition-transform group"
+            >
+                <div className="w-10 h-10 rounded-2xl bg-red-100 flex items-center justify-center">
+                    <LogOut size={20} className="text-red-500" />
+                </div>
+                <span className="flex-1 text-left text-sm font-bold text-red-600">Logout</span>
+            </button>
+
+            <p className="text-center text-[10px] font-bold text-muted opacity-40 mt-4">
+                Version 2.4.0 • Build 2026.02
+            </p>
+        </div>
     </div>
 );
 
 
 const PatientDashboard = () => {
     const navigate = useNavigate();
-    const { user, logout } = useAuth();
-
-    // Auto-select tab from URL ?tab=parameter or default to home
-    const queryParams = new URLSearchParams(window.location.search);
-    const initialTab = queryParams.get('tab') || 'home';
-    const [activeTab, setActiveTab] = useState(initialTab);
+    const { user, logout, loading } = useAuth();
+    const [activeTab, setActiveTab] = useState('home');
     const [notif, setNotif] = useState(null);
 
-    // Notification Simulator
+    // Redirect to login if not authenticated
     useEffect(() => {
-        const timer = setTimeout(() => {
-            setNotif("Reminder: Your appointment with Dr. Sarah Smith is in 10 minutes!");
-            setTimeout(() => setNotif(null), 5000);
-        }, 10000); // 10s after load for demo
-        return () => clearTimeout(timer);
-    }, []);
-
-    // If not patient, redirect (or handle in parent). 
-    // Assuming Route protection handles basic access, but role check good here.
-    if (user?.role === 'hospital') return <div>Hospital Dashboard (See PC)</div>;
-
-    const renderContent = () => {
-        switch (activeTab) {
-            case 'home': return <HomeTab navigate={navigate} />;
-            case 'appointments': return <AppointmentsTab />;
-            case 'ai-doctor': return <AIDoctorTab />;
-            case 'store': return <StoreTab />;
-            case 'profile': return <ProfileTab user={user} logout={logout} />;
-            default: return <HomeTab navigate={navigate} />;
+        if (!loading && !user) {
+            navigate('/login/patient');
         }
+    }, [user, loading, navigate]);
+
+    const handleLogout = () => {
+        logout();
+        navigate('/login/patient');
     };
 
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-slate-50">
+                <Loader2 className="animate-spin text-p-600" size={32} />
+            </div>
+        );
+    }
+
+    if (!user) return null; // Should be handled by useEffect redirect
+
     return (
-        <div className="app-container bg-background">
-            <div className="max-w-[480px] mx-auto bg-card min-h-screen relative">
-                <AnimatePresence>
-                    {notif && (
-                        <motion.div
-                            initial={{ opacity: 0, y: -50 }}
-                            animate={{ opacity: 1, y: 10 }}
-                            exit={{ opacity: 0, y: -50 }}
-                            style={{ position: 'absolute', top: '20px', left: '20px', right: '20px', zIndex: 100, backgroundColor: '#1e293b', color: 'white', padding: '12px 16px', borderRadius: '16px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid #334155' }}
-                        >
-                            <Bell size={20} color="#3b82f6" fill="#3b82f6" className="animate-bounce" />
-                            <p style={{ fontSize: '12px', fontWeight: '600' }}>{notif}</p>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-                {renderContent()}
-            </div>
-            <div className="max-w-[480px] mx-auto left-0 right-0 relative">
-                <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
-            </div>
+        <div className="container overflow-x-hidden">
+            <AnimatePresence>
+                {notif && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -50 }}
+                        animate={{ opacity: 1, y: 10 }}
+                        exit={{ opacity: 0, y: -50 }}
+                        className="fixed top-5 left-1/2 -translate-x-1/2 w-[calc(100%-40px)] z-[2000] p-4 rounded-2xl bg-slate-900 text-white shadow-2xl flex items-center gap-3 border border-white/10 glass"
+                    >
+                        <Bell size={20} className="text-p-500 animate-bounce" fill="var(--p-500)" />
+                        <p className="text-xs font-bold">{notif}</p>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence mode="wait">
+                <motion.div
+                    key={activeTab}
+                    initial={{ opacity: 0, x: 10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    transition={{ duration: 0.3 }}
+                >
+                    {activeTab === 'home' && <HomeTab navigate={navigate} />}
+                    {activeTab === 'appointments' && <AppointmentsTab />}
+                    {activeTab === 'ai-doctor' && <AIDoctorTab />}
+                    {activeTab === 'store' && <StoreTab />}
+                    {activeTab === 'profile' && <ProfileTab user={user} logout={handleLogout} />}
+                </motion.div>
+            </AnimatePresence>
+
+            <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
         </div>
     );
 };
