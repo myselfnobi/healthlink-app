@@ -4,26 +4,38 @@ import Button from '../components/Button';
 import {
     Calendar, CheckCircle, XCircle, Clock, Users, Activity,
     Settings, MapPin, Image as ImageIcon, Loader2, LogOut,
-    Building2, Heart, TrendingUp
+    Hospital, Heart, TrendingUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import ConfirmModal from '../components/ConfirmModal';
 
 const HospitalDashboard = () => {
     const navigate = useNavigate();
     const {
-        user, appointments, updateAppointmentStatus, doctors, approveDoctor, updateProfile, logout,
+        user, appointments, updateAppointmentStatus, allDoctors, approveDoctor, updateProfile, logout,
         doctorStatus, setDoctorStatus, autoApprove, setAutoApprove
     } = useAuth();
     const [activeTab, setActiveTab] = useState('appointments'); // 'appointments' | 'doctors' | 'settings'
+
+    // Safety check - if user is not loaded yet, show loader
+    if (!user) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-[#f8f9fa]">
+                <Loader2 className="animate-spin text-blue-600" size={48} />
+            </div>
+        );
+    }
+
     const [profileForm, setProfileForm] = useState({
-        name: user.name,
-        address: user.address || '',
-        phone: user.phone || user.primaryPhone || '',
-        secondaryPhone: user.secondaryPhone || '',
-        inChargeName: user.inChargeName || ''
+        name: user?.name || '',
+        address: user?.address || '',
+        phone: user?.phone || user?.primaryPhone || '',
+        secondaryPhone: user?.secondaryPhone || '',
+        inChargeName: user?.inChargeName || ''
     });
     const [profileMsg, setProfileMsg] = useState({ type: '', text: '' });
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
     // 1. PENDING DOCTOR VIEW
     if (user.role === 'doctor' && user.status === 'pending') {
@@ -35,8 +47,13 @@ const HospitalDashboard = () => {
                         Your request to join <strong>{user.hospitalCode}</strong> is awaiting approval from the Hospital Admin.
                     </p>
                     <p style={{ marginTop: '8px', color: '#666' }}>Please contact the administration.</p>
-                    <Button size="block" variant="outline" style={{ marginTop: '24px' }} onClick={logout}>Logout</Button>
+                    <Button size="block" variant="outline" style={{ marginTop: '24px' }} onClick={() => setShowLogoutConfirm(true)}>Logout</Button>
                 </div>
+                <ConfirmModal
+                    isOpen={showLogoutConfirm}
+                    onClose={() => setShowLogoutConfirm(false)}
+                    onConfirm={logout}
+                />
             </div>
         );
     }
@@ -48,10 +65,10 @@ const HospitalDashboard = () => {
     });
 
     // Filter pending doctors (Only for Admin/Hospital role)
-    const pendingDoctors = doctors ? doctors.filter(d => d.hospitalCode === user.code && d.status === 'pending') : [];
+    const pendingDoctors = allDoctors ? allDoctors.filter(d => d.hospitalCode === user?.code && d.status === 'pending') : [];
 
-    const pending = myAppointments.filter(a => a.status === 'Confirmed');
-    const completed = myAppointments.filter(a => a.status === 'Completed');
+    const pending = (myAppointments || []).filter(a => a.status === 'Confirmed');
+    const completed = (myAppointments || []).filter(a => a.status === 'Completed');
 
     const handleUpdateProfile = (e) => {
         e.preventDefault();
@@ -96,10 +113,11 @@ const HospitalDashboard = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                     <div style={{ textAlign: 'right' }}>
                         <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#3b82f6' }}>ID: {user.code || user.hospitalCode}</p>
-                        <p style={{ fontSize: '12px', color: '#64748b' }}>{user.role.toUpperCase()}</p>
+                        <p style={{ fontSize: '12px', color: '#64748b' }}>{(user?.role || '').toUpperCase()}</p>
                     </div>
-                    <Button variant="danger" onClick={logout} size="sm">
-                        <LogOut size={16} />
+                    <Button variant="danger" onClick={() => setShowLogoutConfirm(true)} size="md" className="shadow-lg">
+                        <LogOut size={18} />
+                        <span>Logout</span>
                     </Button>
                 </div>
             </div>
@@ -234,7 +252,7 @@ const HospitalDashboard = () => {
                         style={{ backgroundColor: 'white', borderRadius: '24px', padding: '32px', boxShadow: '0 4px 20px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9' }}
                     >
                         <h2 style={{ fontSize: '22px', fontWeight: 'bold', marginBottom: '32px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <Building2 color="#3b82f6" /> Facility Configuration
+                            <Hospital color="#3b82f6" /> Facility Configuration
                         </h2>
 
                         <div style={{ display: 'flex', gap: '48px', flexWrap: 'wrap' }}>
@@ -423,7 +441,7 @@ const HospitalDashboard = () => {
                                                 <tr key={appt.id} style={{ borderBottom: '1px solid #f8fafc' }}>
                                                     <td style={{ padding: '20px 16px' }}>
                                                         <p style={{ fontWeight: 'bold', color: '#1e293b' }}>#{appt.id}</p>
-                                                        <span style={{ fontSize: '12px', color: '#64748b' }}>{appt.visitType.toUpperCase()} Consultation</span>
+                                                        <span style={{ fontSize: '12px', color: '#64748b' }}>{(appt.visitType || 'general').toUpperCase()} Consultation</span>
                                                     </td>
                                                     <td style={{ padding: '16px' }}>{appt.doctorName}</td>
                                                     <td style={{ padding: '16px' }}>{appt.time || '10:00 AM'}</td>
@@ -486,7 +504,7 @@ const HospitalDashboard = () => {
                                         pending.map(a => (
                                             <div key={a.id} style={{ borderLeft: '3px solid #3b82f6', paddingLeft: '16px' }}>
                                                 <p style={{ fontWeight: 'bold', fontSize: '14px' }}>Upcoming: Patient {a.userName || 'Unknown'}</p>
-                                                <p style={{ fontSize: '12px', color: '#94a3b8' }}>Scheduled for {a.time || '10:00 AM'} • {a.visitType.toUpperCase()}</p>
+                                                <p style={{ fontSize: '12px', color: '#94a3b8' }}>Scheduled for {a.time || '10:00 AM'} • {(a.visitType || 'general').toUpperCase()}</p>
                                             </div>
                                         ))
                                     ) : (
@@ -515,6 +533,11 @@ const HospitalDashboard = () => {
                     </motion.div>
                 )}
             </AnimatePresence>
+            <ConfirmModal
+                isOpen={showLogoutConfirm}
+                onClose={() => setShowLogoutConfirm(false)}
+                onConfirm={logout}
+            />
         </div>
     );
 };

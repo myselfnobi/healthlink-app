@@ -12,6 +12,24 @@
     --p-600: #1d4ed8;
     --p-700: #1e40af;
 
+    /* Base Color Tokens */
+    --primary-color: var(--p-500);
+    --warning-color: #f59e0b;
+    --danger-color: #ef4444;
+    --success-color: #10b981;
+
+    /* Spacing & Radius Tokens */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 20px;
+    --radius-xl: 24px;
+
     --accent: #f59e0b;
     --success: #10b981;
     --danger: #ff4d4d;
@@ -19,6 +37,11 @@
     --bg-main: #fcfdfe;
     --text-main: #0f172a;
     --text-muted: #64748b;
+
+    --surface-color: #ffffff;
+    --border-color: #e2e8f0;
+    --text-primary: #0f172a;
+    --text-secondary: #64748b;
 
     --r-md: 24px;
     --r-lg: 32px;
@@ -138,7 +161,70 @@ body {
     animation: shimmer 2.5s infinite linear;
 }
 
+@keyframes slide-up {
+    from {
+        opacity: 0;
+        transform: translateY(40px) translateX(-50%);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) translateX(-50%);
+    }
+}
+
+.animate-slide-up {
+    animation: slide-up 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.animate-fade-in {
+    animation: fade-in 0.4s ease forwards;
+}
+
+/* Auth Layout Classes */
+.auth-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f8f9fb;
+    padding: 20px;
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 480px;
+    background: white;
+    border-radius: 32px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+}
+
+.flex-col {
+    display: flex;
+    flex-direction: column;
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
     width: 0px;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
 }

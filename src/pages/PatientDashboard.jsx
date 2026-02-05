@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
     Calendar, Clock, MapPin, User, LogOut, Package, Video,
     AlertCircle, Send, Bot, User as UserIcon, Loader2, ShoppingBag,
     Search, Upload, Star, Navigation, Plus, FileText, Zap, DollarSign, ChevronRight,
-    Bike, CheckCircle, Map, ArrowLeft, Phone, PhoneOff, MicOff, Bell, ShieldCheck
+    Bike, CheckCircle, Map, ArrowLeft, Phone, PhoneOff, MicOff, ShieldCheck,
+    Stethoscope, Heart, Baby, Eye, FlaskConical, Grid, Ear
 } from 'lucide-react';
 
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
+import ConfirmModal from '../components/ConfirmModal';
 import { getAIResponse } from '../utils/GeminiService';
 import BottomNav from '../components/BottomNav';
 import Header from '../components/Header';
@@ -16,15 +18,132 @@ import HospitalCard from '../components/HospitalCard';
 import { hospitals, medicalStores } from '../utils/mockData';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/Button';
+import LocationPicker from '../components/LocationPicker';
 
+// Carousel Component for Today's Reminders
+const ReminderCarousel = ({ onNavigate }) => {
+    const { appointments, bloodRequests, orders } = useAuth();
+    const [currentIndex, setCurrentIndex] = useState(0);
+
+    const activeAppt = appointments
+        .filter(a => a.status === 'Accepted' || a.status === 'Confirmed')
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+
+    const urgentBlood = bloodRequests[0];
+    const activeOrder = orders.filter(o => o.status !== 'Delivered')[0];
+
+    const slides = [
+        activeAppt && {
+            type: 'appointments',
+            icon: <Clock size={24} className="text-white animate-pulse" />,
+            color: 'bg-p-600',
+            glow: 'shadow-p-600/20',
+            tag: 'Upcoming Appointment',
+            tagColor: 'text-p-600',
+            bg: 'bg-white',
+            borderColor: 'border-slate-100',
+            title: `Dr. ${activeAppt.doctorName}`,
+            desc: `${activeAppt.time} • ${activeAppt.hospitalName}`
+        },
+        urgentBlood && {
+            type: 'blood',
+            icon: <Plus size={24} className="text-white" />,
+            color: 'bg-red-500',
+            glow: 'shadow-red-500/20',
+            tag: 'Blood Requested',
+            tagColor: 'text-red-600',
+            bg: 'bg-red-50',
+            borderColor: 'border-red-100',
+            title: `${urgentBlood.bloodType} Needed`,
+            desc: urgentBlood.hospitalName,
+            isUrgent: true
+        },
+        activeOrder && {
+            type: 'store',
+            icon: <Bike size={24} className="text-white" />,
+            color: 'bg-emerald-500',
+            glow: 'shadow-emerald-500/20',
+            tag: 'Medicine Delivery',
+            tagColor: 'text-emerald-600',
+            bg: 'bg-emerald-50',
+            borderColor: 'border-emerald-100',
+            title: activeOrder.storeName,
+            desc: `${activeOrder.status} • 12 mins away`
+        }
+    ].filter(Boolean);
+
+    useEffect(() => {
+        if (slides.length <= 1) return;
+        const timer = setInterval(() => {
+            setCurrentIndex(prev => (prev + 1) % slides.length);
+        }, 4000);
+        return () => clearInterval(timer);
+    }, [slides.length]);
+
+    if (slides.length === 0) return (
+        <div className="p-8 text-center glass rounded-[32px] border-dashed border-slate-200">
+            <p className="text-sm font-bold text-muted">No urgent reminders for today</p>
+        </div>
+    );
+
+    return (
+        <div className="relative">
+            <AnimatePresence mode="wait">
+                <motion.div
+                    key={currentIndex}
+                    initial={{ opacity: 0, x: 50, scale: 0.95 }}
+                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                    exit={{ opacity: 0, x: -50, scale: 0.95 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    onClick={() => onNavigate(slides[currentIndex].type === 'blood' ? 'home' : slides[currentIndex].type)}
+                    className={`relative overflow-hidden p-6 ${slides[currentIndex].bg} rounded-[36px] shadow-sm border ${slides[currentIndex].borderColor} cursor-pointer active:scale-[0.98] transition-all`}
+                >
+                    <div className="flex items-center gap-5">
+                        <div className={`w-16 h-16 rounded-2xl ${slides[currentIndex].color} flex items-center justify-center shadow-lg ${slides[currentIndex].glow}`}>
+                            {slides[currentIndex].icon}
+                        </div>
+                        <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                                <span className={`text-[11px] font-black uppercase tracking-widest ${slides[currentIndex].tagColor}`}>
+                                    {slides[currentIndex].tag}
+                                </span>
+                                {slides[currentIndex].isUrgent && (
+                                    <span className="px-2 py-0.5 bg-red-600 text-white rounded-full text-[8px] font-black animate-pulse">
+                                        URGENT
+                                    </span>
+                                )}
+                            </div>
+                            <h4 className="text-[17px] font-black text-main mt-1 uppercase tracking-tight">{slides[currentIndex].title}</h4>
+                            <p className="text-[12px] text-muted font-bold mt-0.5">{slides[currentIndex].desc}</p>
+                        </div>
+                        <div className="w-10 h-10 rounded-full bg-black/5 flex items-center justify-center">
+                            <ChevronRight size={20} className="text-slate-400" />
+                        </div>
+                    </div>
+
+                    {/* Dynamic Dots */}
+                    {slides.length > 1 && (
+                        <div className="absolute bottom-3 right-8 flex gap-1.5">
+                            {slides.map((_, idx) => (
+                                <div
+                                    key={idx}
+                                    className={`h-1.5 rounded-full transition-all duration-300 ${idx === currentIndex ? 'w-4 bg-p-600' : 'w-1.5 bg-slate-200'}`}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </motion.div>
+            </AnimatePresence>
+        </div>
+    );
+};
 // TABS CONTENT
-const HomeTab = ({ navigate }) => {
+const HomeTab = ({ navigate, onNavigate, currentLocation, onLocationClick }) => {
     const { user } = useAuth();
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [sortBy, setSortBy] = useState('distance'); // 'distance', 'cost', 'rating'
     const [isLoading, setIsLoading] = useState(false);
-    const [isCallingSOS, setIsCallingSOS] = useState(false);
 
     const handleCategorySelect = (catId) => {
         if (selectedCategory === catId) setSelectedCategory(null);
@@ -68,151 +187,41 @@ const HomeTab = ({ navigate }) => {
         return today.getMonth() === birth.getMonth() && today.getDate() === birth.getDate();
     };
 
-    const handleSOS = () => {
-        setIsCallingSOS(true);
-        setTimeout(() => {
-            setIsCallingSOS(false);
-            window.location.href = "tel:108";
-        }, 1500);
-    };
-
     const categories = [
-        { id: 'general', name: 'General', sub: 'RMP', icon: '🩺', color: '#eff6ff' },
-        { id: 'heart', name: 'Heart', sub: 'Cardiology', icon: '❤️', color: '#fff1f2' },
-        { id: 'child', name: 'Child', sub: 'Pediatrics', icon: '👶', color: '#f0fdf4' },
-        { id: 'ent', name: 'ENT', sub: 'Specialist', icon: '👂', color: '#fffbeb' },
-        { id: 'lab', name: 'Lab Tests', sub: 'Diagnostic', icon: '🧪', color: '#f5f3ff' },
-        { id: 'more', name: 'More', sub: 'Services', icon: '➕', color: '#f8fafc' }
+        { id: 'general', name: 'General', icon: <Stethoscope size={22} />, color: 'from-blue-400 to-blue-600' },
+        { id: 'heart', name: 'Heart', icon: <Heart size={22} />, color: 'from-rose-400 to-rose-600' },
+        { id: 'child', name: 'Child', icon: <Baby size={22} />, color: 'from-emerald-400 to-emerald-600' },
+        { id: 'ent', name: 'ENT', icon: <Ear size={22} />, color: 'from-amber-400 to-amber-600' },
+        { id: 'lab', name: 'Lab Tests', icon: <FlaskConical size={22} />, color: 'from-purple-400 to-purple-600' },
+        { id: 'more', name: 'More', icon: <Grid size={22} />, color: 'from-slate-400 to-slate-600' }
     ];
 
     return (
         <div className="pb-24 animate-fade-in transition-all">
-            <Header variant="home" searchValue={searchTerm} onSearchChange={setSearchTerm} />
+            <Header
+                variant="home"
+                searchValue={searchTerm}
+                onSearchChange={setSearchTerm}
+                currentLocation={currentLocation}
+                onLocationClick={onLocationClick}
+            />
 
             <div className="px-5">
-                {/* Active Appointment Tracker - Dynamic Status Card */}
-                <AnimatePresence>
-                    {(() => {
-                        const { appointments } = useAuth();
-                        const activeAppt = appointments
-                            .filter(a => a.status === 'Accepted' || a.status === 'Confirmed')
-                            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
-
-                        if (!activeAppt) return null;
-
-                        // Countdown Logic
-                        const [timeLeft, setTimeLeft] = useState('');
-
-                        useEffect(() => {
-                            const timer = setInterval(() => {
-                                // Assume "Today" if not specified. Convert "09:00 AM" to Date object.
-                                const today = new Date();
-                                const [time, modifier] = activeAppt.time.split(' ');
-                                let [hours, minutes] = time.split(':');
-                                if (hours === '12') hours = '00';
-                                if (modifier === 'PM') hours = parseInt(hours, 10) + 12;
-
-                                const target = new Date(today.getFullYear(), today.getMonth(), today.getDate(), hours, minutes, 0);
-                                const diff = target - today;
-
-                                if (diff <= 0) {
-                                    setTimeLeft('Appointment Started');
-                                    clearInterval(timer);
-                                } else {
-                                    const h = Math.floor(diff / 3600000);
-                                    const m = Math.floor((diff % 3600000) / 60000);
-                                    const s = Math.floor((diff % 60000) / 1000);
-                                    setTimeLeft(`${h > 0 ? h + 'h ' : ''}${m}m ${s}s`);
-                                }
-                            }, 1000);
-                            return () => clearInterval(timer);
-                        }, [activeAppt.time]);
-
-                        const isStarted = timeLeft === 'Appointment Started';
-
-                        return (
-                            <motion.div
-                                initial={{ opacity: 0, y: -20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className={`mb-8 p-6 glass rounded-[32px] shadow-lg relative overflow-hidden group border-2 ${isStarted ? 'border-success/30' : 'border-p-500/20'
-                                    }`}
-                                style={{
-                                    background: isStarted
-                                        ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(255, 255, 255, 0.9) 100%)'
-                                        : 'linear-gradient(135deg, rgba(37, 99, 235, 0.05) 0%, rgba(255, 255, 255, 0.9) 100%)'
-                                }}
-                            >
-                                <div className="absolute top-0 right-0 p-4">
-                                    <div className={`w-2 h-2 rounded-full animate-ping ${isStarted ? 'bg-success' : 'bg-p-500'}`} />
-                                </div>
-
-                                <div className="flex items-center gap-4 mb-4">
-                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg ${isStarted ? 'bg-success shadow-success/20' : 'bg-p-600 shadow-p-600/20'
-                                        }`}>
-                                        <Clock size={24} className="text-white animate-pulse" />
-                                    </div>
-                                    <div className="flex flex-col">
-                                        <span className={`text-[10px] font-black uppercase tracking-widest ${isStarted ? 'text-success' : 'text-p-600'
-                                            }`}>
-                                            {isStarted ? 'Live Now' : 'Starts In'}
-                                        </span>
-                                        <h3 className="text-xl font-black text-main leading-none mt-0.5">
-                                            {timeLeft || 'Calculating...'}
-                                        </h3>
-                                    </div>
-                                </div>
-
-                                <div className="flex justify-between items-center bg-white/60 p-4 rounded-2xl border border-white/60 shadow-inner">
-                                    <div className="flex flex-col">
-                                        <span className="text-[10px] font-bold text-muted uppercase">Doctor</span>
-                                        <span className="text-sm font-black text-main">{activeAppt.doctorName}</span>
-                                    </div>
-                                    <div className="flex flex-col text-right">
-                                        <span className="text-[10px] font-bold text-muted uppercase">Location</span>
-                                        <span className="text-sm font-black text-main">{activeAppt.hospitalName}</span>
-                                    </div>
-                                </div>
-
-                                <button
-                                    onClick={() => navigate('/?tab=appointments')}
-                                    className={`w-full mt-4 py-4 rounded-2xl text-white font-black text-[13px] uppercase tracking-wider shadow-xl transition-all active:scale-95 border-none cursor-pointer ${isStarted ? 'bg-success shadow-success/20 hover:bg-emerald-600' : 'bg-p-600 shadow-p-600/20 hover:bg-p-700'
-                                        }`}
-                                >
-                                    {isStarted ? 'Join Meeting / Check In' : 'View Details'}
-                                </button>
-                            </motion.div>
-                        );
-                    })()}
-                </AnimatePresence>
-                {/* SOS Section - Glowing Glass Console */}
-                <button
-                    onClick={handleSOS}
-                    disabled={isCallingSOS}
-                    className="flex justify-between items-center w-full mb-10 p-6 rounded-[32px] relative overflow-hidden group border-none shadow-sos"
-                    style={{ background: 'linear-gradient(135deg, #ff4d4d 0%, #db2777 100%)' }}
-                >
-                    {/* Animated Glow layer */}
-                    <div className="absolute inset-0 opacity-40 mix-blend-overlay bg-gradient-to-r from-transparent via-white to-transparent -translate-x-full animate-[shimmer_3s_infinite]" />
-
-                    <div className="flex items-center gap-5 z-10 text-left">
-                        <div className="flex items-center justify-center p-3.5 rounded-2xl glass-dark shadow-sm">
-                            <div className={`p-0.5 rounded-full ${isCallingSOS ? 'animate-ping' : ''}`} style={{ backgroundColor: 'white' }}>
-                                <AlertCircle size={28} className="text-danger" />
-                            </div>
-                        </div>
-                        <div className="flex flex-col">
-                            <h2 style={{ color: 'white', fontWeight: '800', fontSize: '19px', lineHeight: '1.2' }}>
-                                {isCallingSOS ? "Calling Help..." : "SOS – Emergency"}
-                            </h2>
-                            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '11px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.8px', marginTop: '2px' }}>
-                                Instant Ambulance Call
-                            </p>
+                {/* Unified Reminders Section - Today's Priority */}
+                <div className="mb-10">
+                    <div className="flex justify-between items-center mb-6">
+                        <div>
+                            <h3 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-main)', letterSpacing: '-0.5px' }}>
+                                Today's Reminders
+                            </h3>
+                            <div style={{ height: '3px', width: '24px', backgroundColor: 'var(--p-500)', borderRadius: '2px', marginTop: '3px' }} />
                         </div>
                     </div>
-                    <div className="glass-dark p-2.5 rounded-2xl z-10 shadow-sm transition-transform group-active:scale-90">
-                        <ChevronRight size={22} color="white" strokeWidth={3} />
+
+                    <div className="relative overflow-hidden px-1">
+                        <ReminderCarousel onNavigate={onNavigate} />
                     </div>
-                </button>
+                </div>
 
                 {searchTerm.length === 0 && (
                     <div className="mb-10">
@@ -226,39 +235,55 @@ const HomeTab = ({ navigate }) => {
                             <button style={{ color: 'var(--p-600)', fontSize: '13px', fontWeight: '700', padding: '0 4px' }}>See All</button>
                         </div>
 
-                        {/* 3-Column Glass Grid */}
-                        <div className="grid grid-cols-3 gap-4">
-                            {categories.map((cat) => {
-                                const isActive = selectedCategory === cat.id;
-                                return (
-                                    <button
-                                        key={cat.id}
-                                        onClick={() => handleCategorySelect(cat.id)}
-                                        className={`flex flex-col items-center justify-center aspect-square gap-3 rounded-[32px] transition-all duration-300 border-none ${isActive
-                                            ? 'btn-primary scale-[1.08] shadow-primary'
-                                            : 'glass shadow-sm hover:shadow-md'
-                                            }`}
-                                    >
-                                        <div style={{
-                                            fontSize: '28px',
-                                            filter: isActive ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' : 'none',
-                                            transform: isActive ? 'scale(1.1)' : 'scale(1)'
-                                        }}>
-                                            {cat.icon}
-                                        </div>
-                                        <div className="flex flex-col items-center gap-0">
+                        {/* macOS Style Dock */}
+                        <div className="flex overflow-x-auto no-scrollbar py-2 px-4 -mx-4">
+                            <motion.div
+                                className="flex items-end gap-1.5 p-2 px-3 glass rounded-[24px] shadow-xl border border-white/40 mx-auto min-w-max"
+                                layout
+                            >
+                                {categories.map((cat) => {
+                                    const isActive = selectedCategory === cat.id;
+                                    return (
+                                        <div key={cat.id} className="flex flex-col items-center gap-1.5 relative group shrink-0">
+                                            <motion.button
+                                                onClick={() => handleCategorySelect(cat.id)}
+                                                whileHover={{ scale: 1.1, y: -4 }}
+                                                whileTap={{ scale: 0.95 }}
+                                                className={`w-14 h-14 rounded-[20px] flex items-center justify-center relative overflow-hidden transition-all border-none cursor-pointer ${isActive ? 'shadow-lg ring-2 ring-p-500' : 'shadow-sm'
+                                                    }`}
+                                                style={{
+                                                    background: isActive
+                                                        ? 'linear-gradient(135deg, var(--p-500), var(--p-700))'
+                                                        : 'white',
+                                                }}
+                                            >
+                                                <div className={isActive ? 'text-white' : 'text-slate-600'} style={{ transform: 'scale(1.2)' }}>
+                                                    {cat.icon}
+                                                </div>
+                                                <div className="absolute inset-x-0 top-0 h-[40%] bg-gradient-to-b from-white/20 to-transparent pointer-events-none" />
+                                            </motion.button>
+
                                             <span style={{
-                                                fontSize: '12px',
-                                                fontWeight: '800',
-                                                color: isActive ? 'white' : 'var(--text-main)',
+                                                fontSize: '10px',
+                                                fontWeight: '700',
+                                                color: isActive ? 'var(--p-600)' : 'var(--text-secondary)',
                                                 letterSpacing: '-0.2px'
                                             }}>
                                                 {cat.name}
                                             </span>
+
+                                            {isActive && (
+                                                <motion.div
+                                                    layoutId="activeDot"
+                                                    className="w-1 h-1 rounded-full bg-p-600 mt-0.5"
+                                                    initial={{ opacity: 0 }}
+                                                    animate={{ opacity: 1 }}
+                                                />
+                                            )}
                                         </div>
-                                    </button>
-                                );
-                            })}
+                                    );
+                                })}
+                            </motion.div>
                         </div>
                     </div>
                 )}
@@ -450,7 +475,7 @@ const AppointmentsTab = () => {
 
                             <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: '12px', display: 'flex', gap: '16px', fontSize: '12px' }}>
                                 <span>📅 Today</span>
-                                <span>🏥 {appt.visitType.toUpperCase()}</span>
+                                <span>🏥 {(appt.visitType || 'Visit').toUpperCase()}</span>
                             </div>
                         </div>
                     ))}
@@ -1141,7 +1166,6 @@ const ProfileTab = ({ user, logout }) => (
             {[
                 { icon: User, label: 'Edit Profile' },
                 { icon: FileText, label: 'Medical Records' },
-                { icon: Bell, label: 'Notifications' },
                 { icon: ShieldCheck, label: 'Privacy & Security' },
                 { icon: Bot, label: 'Help & Support' },
             ].map((item, i) => (
@@ -1178,6 +1202,28 @@ const PatientDashboard = () => {
     const { user, logout, loading } = useAuth();
     const [activeTab, setActiveTab] = useState('home');
     const [notif, setNotif] = useState(null);
+    const [isCallingSOS, setIsCallingSOS] = useState(false);
+    const [isLocationOpen, setIsLocationOpen] = useState(false);
+    const [selectedLocation, setSelectedLocation] = useState('Mancherial, Telangana');
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+    const handleSOS = () => {
+        setIsCallingSOS(true);
+        setTimeout(() => {
+            setIsCallingSOS(false);
+            window.location.href = "tel:108";
+        }, 1500);
+    };
+
+    // Tab Sync Logic
+    const location = useLocation();
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const tab = params.get('tab');
+        if (tab && ['home', 'appointments', 'doctor', 'store', 'profile'].includes(tab)) {
+            setActiveTab(tab);
+        }
+    }, [location.search]);
 
     // Redirect to login if not authenticated
     useEffect(() => {
@@ -1211,7 +1257,9 @@ const PatientDashboard = () => {
                         exit={{ opacity: 0, y: -50 }}
                         className="fixed top-5 left-1/2 -translate-x-1/2 w-[calc(100%-40px)] z-[2000] p-4 rounded-2xl bg-slate-900 text-white shadow-2xl flex items-center gap-3 border border-white/10 glass"
                     >
-                        <Bell size={20} className="text-p-500 animate-bounce" fill="var(--p-500)" />
+                        <div className="w-10 h-10 rounded-xl bg-p-500/20 flex items-center justify-center">
+                            <Bot size={20} className="text-p-400" />
+                        </div>
                         <p className="text-xs font-bold">{notif}</p>
                     </motion.div>
                 )}
@@ -1225,15 +1273,35 @@ const PatientDashboard = () => {
                     exit={{ opacity: 0, x: -10 }}
                     transition={{ duration: 0.3 }}
                 >
-                    {activeTab === 'home' && <HomeTab navigate={navigate} />}
+                    {activeTab === 'home' && (
+                        <HomeTab
+                            navigate={navigate}
+                            onNavigate={setActiveTab}
+                            currentLocation={selectedLocation}
+                            onLocationClick={() => setIsLocationOpen(true)}
+                        />
+                    )}
                     {activeTab === 'appointments' && <AppointmentsTab />}
                     {activeTab === 'ai-doctor' && <AIDoctorTab />}
                     {activeTab === 'store' && <StoreTab />}
-                    {activeTab === 'profile' && <ProfileTab user={user} logout={handleLogout} />}
+                    {activeTab === 'profile' && <ProfileTab user={user} logout={() => setShowLogoutConfirm(true)} />}
                 </motion.div>
             </AnimatePresence>
 
-            <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+            <BottomNav activeTab={activeTab} onTabChange={setActiveTab} onSOS={handleSOS} />
+
+            <LocationPicker
+                isOpen={isLocationOpen}
+                onClose={() => setIsLocationOpen(false)}
+                onSelect={setSelectedLocation}
+                currentCity={selectedLocation}
+            />
+
+            <ConfirmModal
+                isOpen={showLogoutConfirm}
+                onClose={() => setShowLogoutConfirm(false)}
+                onConfirm={handleLogout}
+            />
         </div>
     );
 };

@@ -1,8 +1,11 @@
 import React from 'react';
 import { Star, MapPin, Phone, Calendar, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import Badge from './Badge';
 
 const HospitalCard = ({ hospital, onClick }) => {
+    const navigate = useNavigate();
+
     const handleCall = (e) => {
         e.stopPropagation();
         window.location.href = `tel:9999999999`; // Placeholder
@@ -53,7 +56,7 @@ const HospitalCard = ({ hospital, onClick }) => {
                 {/* Primary Action Button */}
                 <div className="flex gap-2">
                     <button
-                        onClick={(e) => { e.stopPropagation(); onClick(); }}
+                        onClick={(e) => { e.stopPropagation(); navigate(`/book-appointment/${hospital.id}`); }}
                         className="flex-1 btn-primary py-4 rounded-[20px] font-bold text-[13px] flex items-center justify-center gap-2 border-none cursor-pointer"
                     >
                         <Calendar size={16} strokeWidth={2.5} /> Book Appointment

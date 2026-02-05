@@ -24,8 +24,14 @@ const MedicalStoreLogin = () => {
 
         // Simulate initial check
         setTimeout(() => {
-            // For demo, accept any code starting with MSTR-
-            if (code.toUpperCase().startsWith('MSTR-')) {
+            const res = loginMedicalStore(code.toUpperCase(), pin);
+            if (res && res.success) {
+                setStoreData(res.store);
+                setStep(2);
+                setLoading(false);
+                alert(`Medical Store Login OTP: 1234`); // Simulation
+            } else if (code.toUpperCase().startsWith('MSTR-')) {
+                // Demo fallback if not in mock data
                 const mockStore = {
                     name: 'Demo Medical Store',
                     code: code.toUpperCase(),
@@ -37,7 +43,7 @@ const MedicalStoreLogin = () => {
                 setStoreData(mockStore);
                 setStep(2);
                 setLoading(false);
-                alert(`Medical Store Login OTP: 1234`); // Simulation
+                alert(`Medical Store Login OTP: 1234`);
             } else {
                 setLoading(false);
                 setError('Invalid Store Code. Code should start with MSTR-');
@@ -52,7 +58,8 @@ const MedicalStoreLogin = () => {
         setOtp(newOtp);
 
         if (value !== '' && index < 3) {
-            document.getElementById(`store-otp-${index + 1}`).focus();
+            const nextInput = document.getElementById(`store-otp-${index + 1}`);
+            if (nextInput) nextInput.focus();
         }
     };
 
@@ -74,20 +81,20 @@ const MedicalStoreLogin = () => {
 
     return (
         <div className="auth-wrapper">
-            <div className="auth-card p-4">
+            <div className="auth-card p-6">
                 <button
                     onClick={() => step === 1 ? navigate('/login') : setStep(1)}
                     style={{ background: 'none', border: 'none', padding: '12px 0', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b' }}
                 >
                     <ArrowLeft size={20} />
-                    <span>Back</span>
+                    <span className="font-bold">Back</span>
                 </button>
 
                 <div style={{ textAlign: 'center', marginBottom: '32px', marginTop: '16px' }}>
-                    <div style={{ display: 'inline-flex', padding: '16px', backgroundColor: '#ecfdf5', borderRadius: '20px', color: '#10b981', marginBottom: '16px' }}>
+                    <div style={{ display: 'inline-flex', padding: '20px', backgroundColor: '#ecfdf5', borderRadius: '24px', color: '#10b981', marginBottom: '16px' }}>
                         <Store size={32} />
                     </div>
-                    <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1e293b' }}>Pharmacy Portal</h1>
+                    <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#0f172a' }}>Pharmacy Portal</h1>
                     <p style={{ color: '#64748b', fontSize: '14px' }}>Medical Store Management</p>
                 </div>
 
@@ -99,12 +106,17 @@ const MedicalStoreLogin = () => {
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: -20 }}
                             onSubmit={handleInitialLogin}
-                            style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}
+                            className="flex-col"
+                            style={{ gap: '20px' }}
                         >
-                            {error && <div style={{ color: '#ef4444', backgroundColor: '#fef2f2', padding: '10px', borderRadius: '8px', fontSize: '14px', textAlign: 'center' }}>{error}</div>}
+                            {error && (
+                                <div style={{ color: '#ef4444', backgroundColor: '#fef2f2', padding: '12px', borderRadius: '12px', fontSize: '14px', textAlign: 'center', border: '1px solid #fee2e2', fontWeight: 'bold' }}>
+                                    {error}
+                                </div>
+                            )}
 
-                            <div className="input-field">
-                                <label style={{ fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '8px', display: 'block' }}>Medical Store Code</label>
+                            <div className="input-field flex-col">
+                                <label style={{ fontSize: '13px', fontWeight: '700', color: '#64748b', marginBottom: '8px', marginLeft: '4px' }}>Store Code</label>
                                 <div style={{ position: 'relative' }}>
                                     <Store size={20} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
                                     <input
@@ -113,13 +125,15 @@ const MedicalStoreLogin = () => {
                                         required
                                         value={code}
                                         onChange={(e) => setCode(e.target.value.toUpperCase())}
-                                        style={{ width: '100%', padding: '14px 16px 14px 48px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none', fontSize: '16px' }}
+                                        style={{ width: '100%', padding: '16px 16px 16px 52px', borderRadius: '16px', border: '2px solid #e2e8f0', outline: 'none', fontSize: '16px', fontWeight: '600' }}
+                                        onFocus={(e) => e.target.style.borderColor = '#10b981'}
+                                        onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
                                     />
                                 </div>
                             </div>
 
-                            <div className="input-field">
-                                <label style={{ fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '8px', display: 'block' }}>Passkey / PIN</label>
+                            <div className="input-field flex-col">
+                                <label style={{ fontSize: '13px', fontWeight: '700', color: '#64748b', marginBottom: '8px', marginLeft: '4px' }}>Passkey / PIN</label>
                                 <div style={{ position: 'relative' }}>
                                     <Key size={20} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
                                     <input
@@ -128,13 +142,15 @@ const MedicalStoreLogin = () => {
                                         required
                                         value={pin}
                                         onChange={(e) => setPin(e.target.value)}
-                                        style={{ width: '100%', padding: '14px 16px 14px 48px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none', fontSize: '16px' }}
+                                        style={{ width: '100%', padding: '16px 16px 16px 52px', borderRadius: '16px', border: '2px solid #e2e8f0', outline: 'none', fontSize: '16px', fontWeight: '600' }}
+                                        onFocus={(e) => e.target.style.borderColor = '#10b981'}
+                                        onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
                                     />
                                 </div>
                             </div>
 
                             <Button type="submit" size="block" disabled={loading}>
-                                {loading ? <Loader2 className="animate-spin" /> : 'Continue to OTP'}
+                                {loading ? <Loader2 className="animate-spin text-white" /> : 'Continue to OTP'}
                             </Button>
 
                             <div style={{ textAlign: 'center', marginTop: '16px' }}>
@@ -155,7 +171,8 @@ const MedicalStoreLogin = () => {
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: -20 }}
                             onSubmit={handleVerifyOtp}
-                            style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}
+                            className="flex-col"
+                            style={{ gap: '24px' }}
                         >
                             <div style={{ textAlign: 'center' }}>
                                 <div style={{ color: '#10b981', marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
@@ -173,15 +190,17 @@ const MedicalStoreLogin = () => {
                                             type="number"
                                             value={digit}
                                             onChange={(e) => handleOtpChange(i, e.target.value)}
-                                            style={{ width: '56px', height: '64px', borderRadius: '12px', border: '2px solid #e2e8f0', textAlign: 'center', fontSize: '24px', fontWeight: 'bold', color: '#1e293b' }}
+                                            style={{ width: '56px', height: '64px', borderRadius: '16px', border: '2px solid #e2e8f0', textAlign: 'center', fontSize: '24px', fontWeight: 'bold', color: '#1e293b', outline: 'none' }}
+                                            onFocus={(e) => e.target.style.borderColor = '#10b981'}
+                                            onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
                                         />
                                     ))}
                                 </div>
-                                {error && <p style={{ color: '#ef4444', fontSize: '12px', marginTop: '12px' }}>{error}</p>}
+                                {error && <p style={{ color: '#ef4444', fontSize: '12px', marginTop: '12px', fontWeight: 'bold' }}>{error}</p>}
                             </div>
 
                             <Button type="submit" size="block" disabled={loading || otp.some(v => v === '')}>
-                                {loading ? <Loader2 className="animate-spin" /> : 'Verify & Access Dashboard'}
+                                {loading ? <Loader2 className="animate-spin text-white" /> : 'Verify & Access Dashboard'}
                             </Button>
 
                             <p style={{ textAlign: 'center', fontSize: '14px', color: '#64748b' }}>

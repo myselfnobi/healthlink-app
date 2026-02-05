@@ -1,9 +1,18 @@
-import React from 'react';
-import { UserCircle, Search, Bell } from 'lucide-react';
+import React, { useState } from 'react';
+import { UserCircle, Search, LogOut, MapPin, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import ConfirmModal from './ConfirmModal';
 
-const Header = ({ variant = 'default', searchValue, onSearchChange }) => {
-    const { user } = useAuth();
+const Header = ({ variant = 'default', searchValue, onSearchChange, currentLocation, onLocationClick }) => {
+    const { user, logout } = useAuth();
+    const navigate = useNavigate();
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+    const handleLogout = () => {
+        logout();
+        navigate('/login');
+    };
 
     const getGreeting = () => {
         const hour = new Date().getHours();
@@ -35,33 +44,37 @@ const Header = ({ variant = 'default', searchValue, onSearchChange }) => {
                     borderRadius: '50%'
                 }} />
 
-                <div className="flex justify-between items-center mb-10">
-                    <div className="flex flex-col gap-1">
-                        <span style={{
-                            fontSize: '11px',
-                            fontWeight: '600',
-                            opacity: 0.7,
-                            textTransform: 'uppercase',
-                            letterSpacing: '1.2px'
-                        }}>
-                            {getGreeting()}
-                        </span>
+                <div className="flex justify-between items-start mb-10">
+                    <div className="flex flex-col gap-0.5">
+                        <div
+                            className="flex items-center gap-1.5 cursor-pointer active:opacity-70 transition-opacity"
+                            onClick={onLocationClick}
+                        >
+                            <MapPin size={14} className="text-white/80" />
+                            <span style={{
+                                fontSize: '12px',
+                                fontWeight: '700',
+                                color: 'white',
+                                letterSpacing: '0.2px'
+                            }}>
+                                {currentLocation || 'Mancherial, Telangana'}
+                            </span>
+                            <ChevronDown size={14} className="text-white/80" />
+                        </div>
                         <h1 style={{
-                            fontSize: '28px',
-                            fontWeight: '800',
-                            letterSpacing: '-1px',
+                            fontSize: '32px',
+                            fontWeight: '900',
+                            letterSpacing: '-1.5px',
                             textShadow: '0 2px 10px rgba(0,0,0,0.1)',
-                            textTransform: 'capitalize'
+                            textTransform: 'capitalize',
+                            marginTop: '4px'
                         }}>
                             {user?.name || 'Abhinav'}
                         </h1>
                     </div>
-                    <div className="flex gap-4">
-                        <button className="flex items-center justify-center w-12 h-12 rounded-2xl glass border-none shadow-sm active:scale-90 transition-transform">
-                            <Bell size={20} color="white" strokeWidth={2.5} />
-                        </button>
+                    <div className="flex gap-3">
                         <button className="flex items-center justify-center p-0.5 rounded-2xl bg-white shadow-lg active:scale-95 transition-transform overflow-hidden">
-                            <UserCircle size={44} color="var(--p-600)" />
+                            <UserCircle size={40} color="var(--p-600)" />
                         </button>
                     </div>
                 </div>
@@ -93,9 +106,16 @@ const Header = ({ variant = 'default', searchValue, onSearchChange }) => {
     return (
         <div className="flex justify-between items-center p-5 bg-white border-b border-border/50">
             <h1 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--p-700)' }}>HealthLink</h1>
-            <button className="p-1 rounded-2xl bg-p-50">
-                <UserCircle size={28} color="var(--p-600)" />
-            </button>
+            <div className="flex items-center gap-3">
+                <button className="p-1 rounded-2xl bg-p-50">
+                    <UserCircle size={28} color="var(--p-600)" />
+                </button>
+            </div>
+            <ConfirmModal
+                isOpen={showLogoutConfirm}
+                onClose={() => setShowLogoutConfirm(false)}
+                onConfirm={handleLogout}
+            />
         </div>
     );
 };

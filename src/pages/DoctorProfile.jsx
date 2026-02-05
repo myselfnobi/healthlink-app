@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, Star, Clock, MapPin,
-    Video, Building2, Award, ThumbsUp,
+    Video, Hospital, Award, ThumbsUp,
     MessageCircle, ShieldCheck, IndianRupee,
     Calendar, CheckCircle2, ChevronRight, Share2
 } from 'lucide-react';
@@ -169,7 +169,7 @@ const DoctorProfile = () => {
                         {doctor.hospitals.map((h, i) => (
                             <div key={i} className="flex items-center gap-4 p-4 rounded-[24px] bg-white border border-border/50 shadow-sm">
                                 <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center">
-                                    <Building2 size={20} className="text-slate-500" />
+                                    <Hospital size={20} className="text-slate-500" />
                                 </div>
                                 <div className="flex-1">
                                     <h4 className="text-sm font-black text-main">{h}</h4>

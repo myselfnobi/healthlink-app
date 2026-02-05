@@ -7,7 +7,7 @@ import MapComponent from '../../components/MapComponent';
 import {
     ArrowLeft, ShieldCheck, Phone, User, MapPin,
     Calendar as CalendarIcon, CheckCircle2, Search,
-    Navigation, Loader2, ChevronLeft, ChevronRight, Lock, ChevronDown
+    Navigation, Loader2, ChevronLeft, ChevronRight, Lock, ChevronDown, Mail
 } from 'lucide-react';
 import { hospitals as mockHospitals } from '../../utils/mockData';
 
@@ -113,7 +113,7 @@ const CalendarPicker = ({ value, onChange, onClose }) => {
 
 // --- View Components (Moved Outside) ---
 
-const LoginView = ({ loginPhone, setLoginPhone, onSubmit, onSwitch }) => (
+const LoginView = ({ email, setEmail, password, setPassword, onSubmit, onSwitch }) => (
     <motion.div
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
@@ -133,9 +133,15 @@ const LoginView = ({ loginPhone, setLoginPhone, onSubmit, onSwitch }) => (
             <p className="text-slate-500 text-sm">Please enter your details to sign in</p>
         </div>
 
-        {/* Social Buttons (Mock Enabled) */}
+        {/* Social Buttons (Restored to Circles) */}
         <div className="flex justify-center gap-4 mb-8">
-            {['Google', 'Apple', 'X'].map((p, i) => (
+            <button
+                onClick={() => window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth/oauthchooseaccount?client_id=688088421445-st88nsh90t3g1u80k8373m71c1ve7q59.apps.googleusercontent.com&redirect_uri=https://zencyflow.web.app&scope=email%20profile%20openid&response_type=id_token&prompt=select_account&nonce=123'}
+                className="w-14 h-14 rounded-full border border-slate-200 flex items-center justify-center hover:bg-slate-50 hover:border-blue-200 active:scale-95 transition-all bg-white group shadow-sm cursor-pointer"
+            >
+                <img src="https://cdn.simpleicons.org/google" alt="Google" className="w-5 h-5 opacity-60 group-hover:opacity-100 transition-opacity" />
+            </button>
+            {['Apple', 'X'].map((p, i) => (
                 <button key={i} onClick={() => alert(`${p} Login Coming Soon!`)} className="w-14 h-14 rounded-full border border-slate-200 flex items-center justify-center hover:bg-slate-50 hover:border-blue-200 active:scale-95 transition-all bg-white group shadow-sm cursor-pointer">
                     <img src={`https://cdn.simpleicons.org/${p.toLowerCase()}`} alt={p} className="w-5 h-5 opacity-60 group-hover:opacity-100 transition-opacity" />
                 </button>
@@ -147,18 +153,35 @@ const LoginView = ({ loginPhone, setLoginPhone, onSubmit, onSwitch }) => (
             <span className="bg-slate-50 px-4 text-xs font-bold text-slate-400 uppercase z-10">OR</span>
         </div>
 
-        <form onSubmit={onSubmit} className="flex flex-col gap-5">
+        <form onSubmit={(e) => {
+            e.preventDefault();
+            onSubmit();
+        }} className="flex flex-col gap-5">
             <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 ml-1">Phone Number</label>
+                <label className="text-xs font-bold text-slate-500 ml-1">Email Address</label>
                 <div className="flex items-center gap-3 px-4 py-3.5 bg-white border border-slate-200 rounded-xl focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/10 transition-all shadow-sm">
-                    <span className="text-slate-500 font-bold">+91</span>
+                    <Mail size={18} className="text-slate-400" />
                     <input
-                        type="tel"
-                        placeholder="98765 43210"
+                        type="email"
+                        placeholder="your@email.com"
                         className="bg-transparent border-none outline-none w-full font-semibold text-slate-800 placeholder:text-slate-300"
-                        value={loginPhone}
-                        onChange={(e) => setLoginPhone(e.target.value)}
-                        maxLength={10}
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                    />
+                </div>
+            </div>
+
+            <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 ml-1">Password</label>
+                <div className="flex items-center gap-3 px-4 py-3.5 bg-white border border-slate-200 rounded-xl focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/10 transition-all shadow-sm">
+                    <Lock size={18} className="text-slate-400" />
+                    <input
+                        type="password"
+                        placeholder="••••••••"
+                        className="bg-transparent border-none outline-none w-full font-semibold text-slate-800 placeholder:text-slate-300"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
                         required
                     />
                 </div>
@@ -214,6 +237,15 @@ const SignUpView = ({ data, setData, onSubmit, onSwitch, showCalendar, setShowCa
             </div>
 
             <div className="flex gap-3">
+                <InputGroup icon={<Mail size={18} />} label="Email Address" style={{ flex: 1.5 }}>
+                    <input name="email" type="email" placeholder="john@example.com" value={data.email} onChange={(e) => setData({ ...data, email: e.target.value })} className="bg-transparent outline-none w-full font-medium" required />
+                </InputGroup>
+                <InputGroup icon={<Lock size={18} />} label="Password" style={{ flex: 1 }}>
+                    <input name="password" type="password" placeholder="••••••••" value={data.password} onChange={(e) => setData({ ...data, password: e.target.value })} className="bg-transparent outline-none w-full font-medium" required />
+                </InputGroup>
+            </div>
+
+            <div className="flex gap-3">
                 <InputGroup icon={<CalendarIcon size={18} />} label="Age" style={{ flex: 1, background: '#f1f5f9' }}>
                     <input name="age" value={data.age} readOnly className="bg-transparent outline-none w-full font-medium cursor-default text-slate-500" placeholder="--" />
                 </InputGroup>
@@ -228,15 +260,8 @@ const SignUpView = ({ data, setData, onSubmit, onSwitch, showCalendar, setShowCa
                 <input name="address" placeholder="Area / City" value={data.address} onChange={(e) => setData({ ...data, address: e.target.value })} className="bg-transparent outline-none w-full font-medium" required />
             </InputGroup>
 
-            <InputGroup icon={<Phone size={18} />} label="Phone Number">
-                <div className="flex gap-2 items-center w-full">
-                    <span className="font-bold text-slate-500">+91</span>
-                    <input name="phone" type="tel" maxLength={10} value={data.phone} onChange={(e) => setData({ ...data, phone: e.target.value })} className="bg-transparent outline-none w-full font-medium" required />
-                </div>
-            </InputGroup>
-
             <button type="submit" className="w-full py-3.5 mt-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-bold hover:shadow-lg hover:shadow-emerald-500/30 active:scale-[0.98] transition-all">
-                Register & Get OTP
+                Create Account
             </button>
         </form>
 
@@ -292,16 +317,14 @@ const PatientLogin = () => {
     const { loginPatient } = useAuth();
     const [isLoginView, setIsLoginView] = useState(true);
     const [step, setStep] = useState(1);
-    const [generatedOtp, setGeneratedOtp] = useState(null);
-    const [otp, setOtp] = useState(['', '', '', '', '', '']);
-    const otpRefs = useRef([]);
 
     // Login Form Data
-    const [loginPhone, setLoginPhone] = useState('');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
 
     // Signup Form Data
     const [signupData, setSignupData] = useState({
-        name: '', phone: '', address: '', age: '', birthDate: '', gender: 'Male'
+        name: '', email: '', password: '', address: '', age: '', birthDate: '', gender: 'Male'
     });
 
     const [showCalendar, setShowCalendar] = useState(false);
@@ -317,30 +340,17 @@ const PatientLogin = () => {
         }
     }, [signupData.birthDate]);
 
-    const handleGetOtp = (e) => {
-        e.preventDefault();
-        const phone = isLoginView ? loginPhone : signupData.phone;
-        if (phone.length < 10) {
-            alert('Please enter a valid phone number');
-            return;
-        }
-        const code = Math.floor(100000 + Math.random() * 900000).toString();
-        setGeneratedOtp(code);
-        alert(`Your OTP is: ${code}`);
-        setStep(2);
+    const handleSignIn = (e) => {
+        if (e) e.preventDefault();
+        const finalData = { email, name: email.split('@')[0], role: 'patient' };
+        loginPatient(finalData);
+        navigate('/');
     };
 
-    const handleVerifyOtp = () => {
-        if (otp.join('') === generatedOtp) {
-            const finalData = isLoginView
-                ? { phone: loginPhone, name: 'Patient' }
-                : signupData;
-
-            loginPatient(finalData);
-            navigate('/');
-        } else {
-            alert('Invalid OTP');
-        }
+    const handleSignUp = (e) => {
+        if (e) e.preventDefault();
+        loginPatient(signupData);
+        navigate('/');
     };
 
     return (
@@ -355,9 +365,11 @@ const PatientLogin = () => {
                         isLoginView ? (
                             <LoginView
                                 key="login"
-                                loginPhone={loginPhone}
-                                setLoginPhone={setLoginPhone}
-                                onSubmit={handleGetOtp}
+                                email={email}
+                                setEmail={setEmail}
+                                password={password}
+                                setPassword={setPassword}
+                                onSubmit={handleSignIn}
                                 onSwitch={() => setIsLoginView(false)}
                             />
                         ) : (
@@ -365,23 +377,13 @@ const PatientLogin = () => {
                                 key="signup"
                                 data={signupData}
                                 setData={setSignupData}
-                                onSubmit={handleGetOtp}
+                                onSubmit={handleSignUp}
                                 onSwitch={() => setIsLoginView(true)}
                                 showCalendar={showCalendar}
                                 setShowCalendar={setShowCalendar}
                             />
                         )
-                    ) : (
-                        <OtpView
-                            key="otp"
-                            phone={isLoginView ? loginPhone : signupData.phone}
-                            otp={otp}
-                            setOtp={setOtp}
-                            otpRefs={otpRefs}
-                            onVerify={handleVerifyOtp}
-                            onBack={() => setStep(1)}
-                        />
-                    )}
+                    ) : null}
                 </AnimatePresence>
             </div>
         </div>

@@ -7,12 +7,14 @@ import {
     TrendingUp, User, MapPin, Star, Settings, Image as ImageIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import ConfirmModal from '../components/ConfirmModal';
 
 const MedicalStoreDashboard = () => {
     const { user, orders, updateOrderStatus, updateProfile, logout } = useAuth();
     const [activeTab, setActiveTab] = useState('orders'); // 'orders' | 'settings'
     const [filter, setFilter] = useState('all');
     const [availableItems, setAvailableItems] = useState({});
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
     // Profile State
     const [profileForm, setProfileForm] = useState({
@@ -89,7 +91,7 @@ const MedicalStoreDashboard = () => {
                         <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#10b981' }}>{user.code} • Partner</p>
                         <p style={{ fontSize: '12px', color: '#64748b' }}>{user.phone}</p>
                     </div>
-                    <Button variant="danger" onClick={logout} size="sm">
+                    <Button variant="danger" onClick={() => setShowLogoutConfirm(true)} size="sm">
                         <LogOut size={16} />
                     </Button>
                 </div>
@@ -240,6 +242,11 @@ const MedicalStoreDashboard = () => {
                     </motion.div>
                 )}
             </AnimatePresence>
+            <ConfirmModal
+                isOpen={showLogoutConfirm}
+                onClose={() => setShowLogoutConfirm(false)}
+                onConfirm={logout}
+            />
         </div>
     );
 };

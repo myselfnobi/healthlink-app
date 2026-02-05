@@ -16,6 +16,7 @@ export const AuthProvider = ({ children }) => {
 
     const [appointments, setAppointments] = useState([]);
     const [orders, setOrders] = useState([]);
+    const [bloodRequests, setBloodRequests] = useState([]);
 
     // Doctor Specific
     const [doctorStatus, setDoctorStatus] = useState('Available');
@@ -29,10 +30,34 @@ export const AuthProvider = ({ children }) => {
         if (storedUser) setUser(JSON.parse(storedUser));
 
         const storedAppts = localStorage.getItem('healthlink_appointments');
-        if (storedAppts) setAppointments(JSON.parse(storedAppts));
+        if (storedAppts) {
+            setAppointments(JSON.parse(storedAppts));
+        } else {
+            // Demo Appt
+            const demoAppt = [{ id: 'APT-1', doctorName: 'Sarah Smith', time: '10:00 AM', hospitalName: 'City Care Hospital', status: 'Accepted', visitType: 'offline', timestamp: new Date().toISOString() }];
+            setAppointments(demoAppt);
+            localStorage.setItem('healthlink_appointments', JSON.stringify(demoAppt));
+        }
 
         const storedOrders = localStorage.getItem('healthlink_orders');
-        if (storedOrders) setOrders(JSON.parse(storedOrders));
+        if (storedOrders) {
+            setOrders(JSON.parse(storedOrders));
+        } else {
+            // Demo Order
+            const demoOrder = [{ id: 'ORD-1', storeName: 'Apollo Pharmacy', status: 'Out for delivery', timestamp: new Date().toISOString() }];
+            setOrders(demoOrder);
+            localStorage.setItem('healthlink_orders', JSON.stringify(demoOrder));
+        }
+
+        const storedBlood = localStorage.getItem('healthlink_blood_requests');
+        if (storedBlood) {
+            setBloodRequests(JSON.parse(storedBlood));
+        } else {
+            // Demo Blood Request
+            const demoBlood = [{ id: 'BLD-1', patientName: 'Abhinav', bloodType: 'O+', status: 'Urgent', hospitalName: 'Apollo Spectra', timestamp: new Date().toISOString() }];
+            setBloodRequests(demoBlood);
+            localStorage.setItem('healthlink_blood_requests', JSON.stringify(demoBlood));
+        }
 
         // Initialize Dynamic Data (Fallback to Mocks if empty)
         const storedHospitals = localStorage.getItem('healthlink_hospitals');
@@ -282,7 +307,7 @@ export const AuthProvider = ({ children }) => {
 
     return (
         <AuthContext.Provider value={{
-            user, loading, appointments, orders,
+            user, loading, appointments, orders, bloodRequests,
 
             // Dynamic Data Sources
             allHospitals, allDoctors, allMedicalStores,

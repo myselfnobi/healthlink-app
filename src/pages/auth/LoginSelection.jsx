@@ -65,7 +65,7 @@ const LoginSelection = () => {
 
                         {/* Badge */}
                         <span className="px-3 py-1 bg-[#E3F2FD] text-[#1565C0] text-[11px] font-bold rounded-full">
-                            Phone OTP
+                            Email + Password
                         </span>
                     </button>
 
